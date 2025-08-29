@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model actividad {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model cinta {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model cosmobiologia {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model criterio {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model empresa {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model instrumento {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model instrumento_grafico {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model instrumento_tipo {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model instrumento_usuario {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model observacion_coach_diagnostico {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_alteracion {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_antecedente {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_consulta {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_consulta_coach {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_enfermedad {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_examen_dental {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+// model paciente_examen_dental_presentes {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_examen_ocular {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_frecuencia_cardiaca {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_glicemia {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_historia {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_instrumento {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_instrumento_detalle {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_instrumento_respuesta {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_masa_corporal {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+// model paciente_peso {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_pulso {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_puntualidad {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_radiografia_dental {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_redimension {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model paciente_tension_arterial {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model pais {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model pregunta {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model programa {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model redimension_ser {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model respuesta {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model tema {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model tipo_cliente {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model tipo_formacion {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model topico {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model usuario {
+// }
+
+/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
+// model usuario_menu {
+// }
