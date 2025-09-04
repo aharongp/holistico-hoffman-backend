@@ -1,6 +1,5 @@
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -8,176 +7,729 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model actividad {
-// }
+model actividad {
+  id           Int       @id @default(autoincrement())
+  id_programa  Int?
+  nombre       String?
+  descripcion  String?
+  user_created String?
+  created_at   DateTime? @db.Date
+  updated_at   DateTime? @db.Date
+  dia          String?
+  hora         DateTime? @db.Time(6)
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model cinta {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model cosmobiologia {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model criterio {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model empresa {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model instrumento {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model instrumento_grafico {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model instrumento_tipo {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model instrumento_usuario {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model observacion_coach_diagnostico {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_alteracion {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_antecedente {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_consulta {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_consulta_coach {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_enfermedad {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_examen_dental {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-// model paciente_examen_dental_presentes {
-// }
+model cinta {
+  id              Int       @id @default(autoincrement())
+  nombre          String?
+  color           String?
+  orden           Int?
+  descripcion     String?
+  user_created    String?
+  created_at      DateTime? @db.Date
+  updated_at      DateTime? @db.Date
+  bg_color        String?
+  siguiente_cinta Int?
+  hexadecimal     String?
+  hilo            String?
+  cinta           Int?      @default(0)
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_examen_ocular {
-// }
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model cosmobiologia {
+  id                     Int       @id @default(autoincrement())
+  id_paciente            Int?
+  ano                    Int?
+  edad                   Int?
+  salud_comentario       String?
+  salud_nivel            Int?
+  astrologico_comentario String?
+  astrologico_nivel      Int?
+  emocional_comentario   String?
+  emocional_nivel        Int?
+  created_at             DateTime? @db.Date
+  updated_at             DateTime? @db.Date
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_frecuencia_cardiaca {
-// }
+  @@ignore
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_glicemia {
-// }
+model criterio {
+  id           Int       @id @default(autoincrement())
+  nombre       String?
+  descripcion  String?
+  user_created String?
+  created_at   DateTime? @db.Date
+  updated_at   DateTime? @db.Date
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_historia {
-// }
+model empresa {
+  id          Int       @id(map: "empresa_pk") @unique(map: "empresa_id_uindex") @default(autoincrement())
+  nombre      String?
+  sigla       String?
+  ubicacion   String?
+  observacion String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_instrumento {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_instrumento_detalle {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_instrumento_respuesta {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_masa_corporal {
-// }
-
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
 /// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
-// model paciente_peso {
-// }
+model instrumento {
+  id                  Int       @id @default(autoincrement())
+  id_instrumento_tipo Int?
+  id_tema             Int?
+  descripcion         String?
+  recurso             String?
+  activo              Int?      @default(1)
+  user_created        String?
+  created_at          DateTime? @db.Date
+  updated_at          DateTime? @db.Date
+  disponible          String?
+  resultados          String?
+  color_respuesta     Int?      @default(0)
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_pulso {
-// }
+model instrumento_grafico {
+  id             Int       @id @unique(map: "instrumento_grafico_id_uindex") @default(autoincrement())
+  id_instrumento Int?
+  titulo         String?
+  sentencia      String?
+  tipo_grafico   String?
+  ancho          Int?
+  alto           Int?
+  created_at     DateTime? @db.Date
+  updated_at     DateTime? @db.Date
+  id_criterio    Int?
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_puntualidad {
-// }
+model instrumento_tipo {
+  id           Int       @id @default(autoincrement())
+  nombre       String?
+  descripcion  String?
+  user_created String?
+  created_at   DateTime? @db.Date
+  updated_at   DateTime? @db.Date
+  id_criterio  Int?
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_radiografia_dental {
-// }
+model instrumento_usuario {
+  id                  Int       @id @default(autoincrement())
+  id_instrumento_tipo Int?
+  id_instrumento      Int?
+  id_usuario          Int?
+  estatus             String?
+  created_at          DateTime? @db.Date
+  updated_at          DateTime? @db.Date
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_redimension {
-// }
+model observacion_coach_diagnostico {
+  id             Int       @id @default(autoincrement())
+  id_instrumento Int?
+  fecha_aplicado DateTime? @db.Date
+  id_paciente    Int?
+  id_topico      Int?
+  comentario     String?
+  coach          String?
+  created_at     DateTime? @db.Date
+  updated_at     DateTime? @db.Date
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model paciente_tension_arterial {
-// }
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model paciente {
+  id                           Int       @id @default(autoincrement())
+  id_cinta                     Int?
+  cedula                       String?
+  nombres                      String?
+  apellidos                    String?
+  genero                       String?
+  fecha_nacimiento             DateTime? @db.Date
+  edad                         Int?
+  fecha_ingreso                DateTime? @db.Date
+  telefono                     String?
+  direccion                    String?
+  activo                       Int?      @default(1)
+  user_created                 String?
+  created_at                   DateTime? @db.Date
+  updated_at                   DateTime? @db.Date
+  id_usuario                   Int?
+  inicial                      String?
+  estatura                     String?
+  peso                         String?
+  id_programa                  Int?
+  peso_ideal                   String?
+  historia                     String?
+  tipo_meta                    String?
+  hilo                         Int?      @default(0)
+  lugar_nacimiento             String?
+  hora_nacimiento              DateTime? @db.Time(6)
+  estado_civil                 String?
+  profesion                    String?
+  ocupacion                    String?
+  empresa_direccion            String?
+  familiar_cercano             String?
+  familiar_cercano_parentesco  String?
+  familiar_cercano_telefono    String?
+  contacto                     String?
+  contacto_correo              String?
+  contacto_telefono            String?
+  medico_tratante              String?
+  medico_tratante_especialidad String?
+  medicacion                   String?
+  id_pais                      Int?
+  id_tipo_cliente              Int?
+  id_tipo_formacion            Int?
+  interno                      Int?
+  porcentaje_fce               Int?
+  prepaciente                  Int?      @default(0)
+  prepaciente_llave            Int?      @default(0)
+  id_coach                     Int?
+  id_facilitador               Int?
+  id_trainer                   Int?
+  id_empresa                   Int?
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model pais {
-// }
+model paciente_alteracion {
+  id          Int       @id @unique(map: "paciente_alteracion_id_uindex") @default(autoincrement())
+  id_paciente Int?
+  alteracion  String?
+  estatus     Int?      @default(0)
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model pregunta {
-// }
+model paciente_antecedente {
+  id                     Int       @id(map: "paciente_antedente_pkey") @unique(map: "paciente_antedente_id_uindex") @default(autoincrement())
+  id_paciente            Int?
+  cancer                 String?
+  tuberculosis           String?
+  diabetes               String?
+  asma                   String?
+  tension_alta           String?
+  epilepsia              String?
+  enfermedad_mental      String?
+  suicidio               String?
+  enfermedad_sangre      String?
+  enfermedad_vasos       String?
+  artritis               String?
+  sifilis                String?
+  otras                  String?
+  created_at             DateTime? @db.Date
+  updated_at             DateTime? @db.Date
+  padre_edad             String?
+  madre_edad             String?
+  padre_fallecido        String?
+  numero_hermano         String?
+  posicion_ocupa         String?
+  numero_hijo            String?
+  vive_quien             String?
+  bcg                    Int?      @default(0)
+  polio                  Int?      @default(0)
+  sarampion              Int?      @default(0)
+  tifus                  Int?      @default(0)
+  triple                 Int?      @default(0)
+  tetano                 Int?      @default(0)
+  colera                 Int?      @default(0)
+  fiebre_amarilla        Int?      @default(0)
+  otra_inmunizacion      String?
+  otra_enfermedad        String?
+  operacion              String?
+  herida                 String?
+  terapia                String?
+  alergia                String?
+  edad_desarrollo        String?
+  menstruacion           String?
+  ciclo_menstrual        String?
+  flujo                  String?
+  metodo_control_natal   String?
+  numero_embarazo        String?
+  numero_parto           String?
+  numero_cesarea         String?
+  numero_nacimiento      String?
+  numero_aborto          String?
+  edad_menopausia        String?
+  deporte                String?
+  deporte_frecuencia     String?
+  hora_laborable         String?
+  trabajo_satisface      String?
+  trabajo_estabilidad    String?
+  descansa               String?
+  tiempo_libre           String?
+  trabajo_comparte       String?
+  distraccion            String?
+  animal_domestico       String?
+  plantas                String?
+  tecnologia             String?
+  credo_religioso        String?
+  consumo                String?
+  amistad                String?
+  pareja                 String?
+  familia                String?
+  espiritualidad         String?
+  enfermedad_actual      String?
+  otra_alteracion        String?
+  respiracion            String?
+  apetito_comida         String?
+  aversion               String?
+  intolerancia           String?
+  bebida                 String?
+  adiccion               String?
+  evacuacion             String?
+  vitalidad              String?
+  dormir                 String?
+  manifestacion_cutanea  String?
+  sudoracion_temperatura String?
+  miccion                String?
+  sexualidad             String?
+  condicion_psiquica     String?
+  condicion_fisica       String?
+  grupo_sanguineo        String?
+  biotipo                String?
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model programa {
-// }
+model paciente_consulta {
+  id                  Int       @id(map: "tabla_consulta_pkey") @unique(map: "tabla_consulta_id_uindex") @default(autoincrement())
+  id_paciente         Int?
+  motivo              String?
+  fecha               DateTime? @db.Date
+  peso                String?
+  imc                 String?
+  gc                  String?
+  pulso               String?
+  fcm                 String?
+  tension             String?
+  brazo               String?
+  muslo               String?
+  cintura             String?
+  cadera              String?
+  busto_pecho         String?
+  cuello              String?
+  hallazgo            String?
+  diagnostico         String?
+  recomendacion       String?
+  observacion         String?
+  created_at          DateTime? @db.Date
+  updated_at          DateTime? @db.Date
+  respiracion         String?
+  evolucion           String?
+  recomendacion_coach String?
+  indicaciones        String?
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model redimension_ser {
-// }
+model paciente_consulta_coach {
+  id          Int       @id @unique(map: "paciente_consulta_coach_id_uindex") @default(autoincrement())
+  fecha       DateTime? @db.Date
+  coach       String?
+  observacion String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+  motivo      String?
+  id_paciente Int?
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model respuesta {
-// }
+model paciente_enfermedad {
+  id          Int       @id @unique(map: "paciente_enfermedad_id_uindex") @default(autoincrement())
+  id_paciente Int?
+  enfermedad  String?
+  estatus     String?
+  inicio      String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model tema {
-// }
+model paciente_examen_dental {
+  id          Int       @id @unique(map: "paciente_examen_dental_id_uindex") @default(autoincrement())
+  id_paciente Int?
+  primero_si  String?
+  segundo_si  String?
+  tercero_si  String?
+  cuarto_si   String?
+  quinto_si   String?
+  sexto_si    String?
+  septimo_si  String?
+  octavo_si   String?
+  primero_sd  String?
+  segundo_sd  String?
+  tercero_sd  String?
+  cuarto_sd   String?
+  quinto_sd   String?
+  sexto_sd    String?
+  septimo_sd  String?
+  octavo_sd   String?
+  primero_iiz String?
+  segundo_iiz String?
+  tercero_iiz String?
+  cuarto_iiz  String?
+  quinto_iiz  String?
+  sexto_iiz   String?
+  septimo_iiz String?
+  octavo_iiz  String?
+  primero_id  String?
+  segundo_id  String?
+  tercero_id  String?
+  cuarto_id   String?
+  quinto_id   String?
+  sexto_id    String?
+  septimo_id  String?
+  octavo_id   String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model tipo_cliente {
-// }
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model paciente_examen_dental_presentes {
+  id          Int       @id(map: "paciente_examen_detal_presentes_pkey") @unique(map: "paciente_examen_detal_presentes_id_uindex") @default(autoincrement())
+  id_paciente Int?
+  primero_si  Int?      @default(1)
+  segundo_si  Int?      @default(1)
+  tercero_si  Int?      @default(1)
+  cuarto_si   Int?      @default(1)
+  quinto_si   Int?      @default(1)
+  sexto_si    Int?      @default(1)
+  septimo_si  Int?      @default(1)
+  octavo_si   Int?      @default(1)
+  primero_sd  Int?      @default(1)
+  segundo_sd  Int?      @default(1)
+  tercero_sd  Int?      @default(1)
+  cuarto_sd   Int?      @default(1)
+  quinto_sd   Int?      @default(1)
+  sexto_sd    Int?      @default(1)
+  septimo_sd  Int?      @default(1)
+  octavo_sd   Int?      @default(1)
+  primero_iiz Int?      @default(1)
+  segundo_iiz Int?      @default(1)
+  tercero_iiz Int?      @default(1)
+  cuarto_iiz  Int?      @default(1)
+  quinto_iiz  Int?      @default(1)
+  sexto_iiz   Int?      @default(1)
+  septimo_iiz Int?      @default(1)
+  octavo_iiz  Int?      @default(1)
+  primero_id  Int?      @default(1)
+  segundo_id  Int?      @default(1)
+  tercero_id  Int?      @default(1)
+  cuarto_id   Int?      @default(1)
+  quinto_id   Int?      @default(1)
+  sexto_id    Int?      @default(1)
+  septimo_id  Int?      @default(1)
+  octavo_id   Int?      @default(1)
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model tipo_formacion {
-// }
+model paciente_examen_ocular {
+  id                    Int       @id @unique(map: "paciente_examen_ocular_id_uindex") @default(autoincrement())
+  id_paciente           String?
+  fecha                 DateTime? @db.Date
+  motivo                String?
+  ojo_derecho           String?
+  observacion_derecho   String?
+  created_at            DateTime? @db.Date
+  updated_at            DateTime? @db.Date
+  comentario            String?
+  ojo_izquierdo         String?
+  observacion_izquierdo String?
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model topico {
-// }
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model paciente_frecuencia_cardiaca {
+  id                      Int       @id @default(autoincrement())
+  id_paciente             Int?
+  fcr                     Int?
+  fc_15_min               Int?
+  fc_30_min               Int?
+  fc_45_min               Int?
+  fc_5_min_entrenamiento  Int?
+  fc_10_min_entrenamiento Int?
+  entrenamiento           String?
+  created_at              DateTime? @db.Date
+  updated_at              DateTime? @db.Date
+  fecha                   DateTime? @db.Date
+  evaluado                Int?      @default(0)
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model usuario {
-// }
+  @@ignore
+}
 
-/// We could not retrieve columns for the underlying table. Either it has none or you are missing rights to see them. Please check your privileges.
-// model usuario_menu {
-// }
+model paciente_glicemia {
+  id          Int       @id @default(autoincrement())
+  id_paciente Int?
+  fecha       DateTime? @db.Date
+  glicemia    String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+  evaluado    Int?      @default(0)
+}
+
+model paciente_historia {
+  id          Int       @id @default(autoincrement())
+  id_paciente Int?
+  archivo     String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+}
+
+model paciente_instrumento {
+  id                  Int       @id @default(autoincrement())
+  id_paciente         Int?
+  id_instrumento_tipo Int?
+  fecha_instrumento   DateTime? @db.Date
+  completado          Int?      @default(0)
+  user_created        String?
+  created_at          DateTime? @db.Date
+  updated_at          DateTime? @db.Date
+  origen              String?
+  valido_hasta        DateTime? @db.Date
+  evaluado            Int?      @default(0)
+  array_tema          String?
+  disponible          String?
+  id_cinta            Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model paciente_instrumento_detalle {
+  id                      Int       @id @default(autoincrement())
+  id_paciente             Int?
+  id_paciente_instrumento Int?
+  id_instrumento_tipo     Int?
+  id_instrumento          Int?
+  estatus                 String?   @default(dbgenerated("1"))
+  created_at              DateTime? @db.Date
+  updated_at              DateTime? @db.Date
+  evaluado                Int?      @default(0)
+  competencia             String?
+  disponible              String?
+  fecha_asignado          DateTime? @db.Date
+  fecha_vence             DateTime? @db.Date
+
+  @@ignore
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model paciente_instrumento_respuesta {
+  id                      Int       @id @default(autoincrement())
+  id_paciente             Int?
+  tema                    String?
+  pregunta                String?
+  respuesta               String?
+  fecha                   DateTime? @db.Date
+  updated_at              DateTime? @db.Date
+  evaluado                Int?      @default(0)
+  id_instrumento_tipo     Int?
+  created_at              DateTime? @db.Date
+  competencia             String?
+  id_criterio             Int?
+  id_tema                 Int?
+  tipo_instrumento        String?
+  id_pregunta             Int?
+  id_paciente_instrumento Int?
+  guardado                Int?      @default(0)
+  id_instrumento          Int?
+  topico                  String?
+  orden                   Int?
+
+  @@index([id_paciente, id_instrumento], map: "idx_paciente_instrumento_Respu")
+}
+
+model paciente_masa_corporal {
+  id                  Int       @id @default(autoincrement())
+  id_paciente         Int?
+  fecha               DateTime? @db.Date
+  peso                String?
+  cuello              String?
+  busto               String?
+  cintura             String?
+  cadera              String?
+  created_at          DateTime? @db.Date
+  foto_rostro         String?
+  foto_cuerpo_frente  String?
+  foto_cuerpo_perfil  String?
+  foto_espalda_entero String?
+  updated_at          DateTime? @db.Date
+  evaluado            Int?      @default(0)
+  brazo_derecho       String?
+  muslo_derecho       String?
+  foto_extra          String?
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model paciente_peso {
+  id          Int       @id @default(autoincrement())
+  id_paciente Int?
+  fecha       DateTime? @db.Date
+  peso        String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+  evaluado    Int?      @default(0)
+}
+
+model paciente_pulso {
+  id          Int       @id @default(autoincrement())
+  id_paciente Int?
+  fecha       DateTime? @db.Date
+  pulso       Int?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+  evaluado    Int?      @default(0)
+}
+
+model paciente_puntualidad {
+  id              Int       @id @default(autoincrement())
+  id_paciente     Int?
+  fecha           DateTime? @db.Date
+  actividad       String?
+  puntualidad     Int?
+  efectividad     Int?
+  cumplimiento    Int?
+  efectividad_rol Int?
+  created_at      DateTime? @db.Date
+  updated_at      DateTime? @db.Date
+  evaluado        Int?      @default(0)
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model paciente_radiografia_dental {
+  id          Int       @id @default(autoincrement())
+  id_paciente Int?
+  fecha       DateTime? @db.Date
+  archivo     String?
+  observacion String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+
+  @@ignore
+}
+
+model paciente_redimension {
+  id             Int       @id @default(autoincrement())
+  id_paciente    Int?
+  semana         String?
+  actividad      String?
+  estatus        Int?      @default(0)
+  created_at     DateTime? @db.Date
+  updated_at     DateTime? @db.Date
+  usuario        String?
+  id_redimension Int?
+  orden          String?
+}
+
+model paciente_tension_arterial {
+  id          Int       @id @default(autoincrement())
+  id_paciente Int?
+  fecha       DateTime? @db.Date
+  sistolica   Int?
+  diastolica  Int?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+  evaluado    Int?      @default(0)
+}
+
+model pais {
+  id     Int     @id @unique(map: "pais_id_uindex") @default(autoincrement())
+  code   Int?
+  iso_a  String?
+  iso_b  String?
+  nombre String?
+}
+
+model pregunta {
+  id             Int       @id @default(autoincrement())
+  id_instrumento Int?
+  id_topico      Int?
+  nombre         String?
+  user_created   String?
+  created_at     DateTime? @db.Date
+  updated_at     DateTime? @db.Date
+  tipo_respuesta String?
+  orden          Int?
+  habilitada     Int?      @default(1)
+}
+
+model programa {
+  id           Int       @id @default(autoincrement())
+  nombre       String?
+  user_created String?
+  created_at   DateTime? @db.Date
+  updated_at   DateTime? @db.Date
+  descripcion  String?
+}
+
+model redimension_ser {
+  id          Int       @id @default(autoincrement())
+  semana      String?
+  actividad   String?
+  created_at  DateTime? @db.Date
+  updated_at  DateTime? @db.Date
+  descripcion String?
+  orden       String?
+}
+
+model respuesta {
+  id           Int       @id @default(autoincrement())
+  id_pregunta  Int?
+  nombre       String?
+  user_created String?
+  created_at   DateTime? @db.Date
+  updated_at   DateTime? @db.Date
+  valor        String?
+  color        String?
+}
+
+model tema {
+  id               Int       @id @default(autoincrement())
+  nombre           String?
+  descripcion      String?
+  user_created     String?
+  created_at       DateTime? @db.Date
+  updated_at       DateTime? @db.Date
+  tipo_instrumento String?
+  id_cinta         Int?
+}
+
+model tipo_cliente {
+  id     Int     @id @unique(map: "tipo_cliente_id_uindex") @default(autoincrement())
+  nombre String?
+  codigo String?
+}
+
+model tipo_formacion {
+  id     Int     @id @unique(map: "tipo_formacion_id_uindex") @default(autoincrement())
+  nombre String?
+  codigo String?
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model topico {
+  id             Int       @id @default(autoincrement())
+  id_instrumento Int?
+  nombre         String?
+  user_created   String?
+  created_at     DateTime? @db.Date
+  updated_at     DateTime? @db.Date
+  show           Boolean?  @default(true)
+}
+
+model usuario {
+  id             Int       @id @default(autoincrement())
+  username       String?
+  email          String?
+  password       String?
+  rol            String?
+  avatar         String?
+  active         Int?
+  remember_token String?
+  created_at     DateTime? @db.Date
+  updated_at     DateTime? @db.Date
+  id_programa    Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model usuario_menu {
+  id           Int       @id @default(autoincrement())
+  id_usuario   Int?
+  menu         String?
+  opcion       String?
+  user_created String?
+  created_at   DateTime? @db.Date
+  updated_at   DateTime? @db.Date
+
+  @@ignore
+}

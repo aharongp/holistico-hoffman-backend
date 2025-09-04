@@ -9,9 +9,6 @@ export class AuthService {
   constructor(private prisma: PrismaService) {}
 
   create(createAuthDto: CreateAuthDto) {
-    this.prisma.auth.create({
-      data: createAuthDto,
-    });
     return 'This action adds a new auth';
   }
 

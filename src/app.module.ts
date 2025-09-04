@@ -14,6 +14,6 @@ import { PrismaModule } from './prisma/prisma.module';
 @Module({
   imports: [ConfigModule, AuthModule, UsersModule, CompaniesModule, CatalogsModule, PatientsModule, CosmobiologyModule, PrismaModule],
   controllers: [AppController],
-  providers: [AppService, PrismaService],
+  providers: [AppService],
 })
 export class AppModule {}
