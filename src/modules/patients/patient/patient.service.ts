@@ -184,4 +184,39 @@ export class PatientService {
     await this.prisma.paciente.delete({ where: { id } });
     return { deleted: true };
   }
+
+  async findByProgramId(programId: number | null): Promise<PublicPatient[]> {
+    const patients = await this.prisma.paciente.findMany({
+      where: { id_programa: programId === null ? null : programId },
+      select: {
+        id: true,
+        cedula: true,
+        nombres: true,
+        apellidos: true,
+        genero: true,
+        fecha_nacimiento: true,
+        telefono: true,
+        direccion: true,
+        activo: true,
+        id_programa: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    return patients.map(p => ({
+      id: p.id,
+      cedula: p.cedula ?? null,
+      nombres: p.nombres ?? null,
+      apellidos: p.apellidos ?? null,
+      genero: p.genero ?? null,
+      fecha_nacimiento: p.fecha_nacimiento ?? null,
+      telefono: p.telefono ?? null,
+      direccion: p.direccion ?? null,
+      activo: p.activo ?? null,
+      id_programa: p.id_programa ?? null,
+      created_at: p.created_at ?? null,
+      updated_at: p.updated_at ?? null,
+    }));
+  }
 }

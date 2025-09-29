@@ -10,9 +10,10 @@ import { CatalogsModule } from './modules/catalogs/catalogs.module';
 import { PatientsModule } from './modules/patients/patients.module';
 import { CosmobiologyModule } from './modules/cosmobiology/cosmobiology.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
-  imports: [ConfigModule, AuthModule, UsersModule, CompaniesModule, CatalogsModule, PatientsModule, CosmobiologyModule, PrismaModule],
+  imports: [ConfigModule, AuthModule, UsersModule, CompaniesModule, CatalogsModule, PatientsModule, CosmobiologyModule, PrismaModule, DashboardModule],
   controllers: [AppController],
   providers: [AppService],
 })

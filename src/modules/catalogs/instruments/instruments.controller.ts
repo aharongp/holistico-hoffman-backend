@@ -17,6 +17,24 @@ export class InstrumentsController {
     return this.instrumentsService.findAll();
   }
 
+  // GET /instruments/types -> all instrument types
+  @Get('types')
+  findTypes() {
+    return this.instrumentsService.findTypes();
+  }
+
+  // GET /instruments/types/:user -> instrument types created by specific user
+  @Get('types/user/:user')
+  findTypesByUser(@Param('user') user: string) {
+    return this.instrumentsService.findTypesByUser(user);
+  }
+
+  // GET /instruments/by-type/:typeId -> instruments belonging to that type
+  @Get('by-type/:typeId')
+  findByType(@Param('typeId') typeId: string) {
+    return this.instrumentsService.findByType(Number(typeId));
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.instrumentsService.findOne(+id);

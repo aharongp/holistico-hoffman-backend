@@ -18,6 +18,16 @@ export type PublicInstrument = {
   color_respuesta?: number | null;
 };
 
+export type PublicInstrumentType = {
+  id: number;
+  nombre?: string | null;
+  descripcion?: string | null;
+  user_created?: string | null;
+  created_at?: Date | null;
+  updated_at?: Date | null;
+  id_criterio?: number | null;
+};
+
 @Injectable()
 export class InstrumentsService {
   constructor(private readonly prisma: PrismaService) {}
@@ -182,5 +192,89 @@ export class InstrumentsService {
   async remove(id: number): Promise<{ deleted: boolean }> {
     await this.prisma.instrumento.delete({ where: { id } });
     return { deleted: true };
+  }
+
+  // Return all instrument types
+  async findTypes(): Promise<PublicInstrumentType[]> {
+    const types = await this.prisma.instrumento_tipo.findMany({
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        user_created: true,
+        created_at: true,
+        updated_at: true,
+        id_criterio: true,
+      },
+    });
+    return types.map(t => ({
+      id: t.id,
+      nombre: t.nombre ?? null,
+      descripcion: t.descripcion ?? null,
+      user_created: t.user_created ?? null,
+      created_at: t.created_at ?? null,
+      updated_at: t.updated_at ?? null,
+      id_criterio: t.id_criterio ?? null,
+    }));
+  }
+
+  // Return instrument types created by a specific user (matches user_created)
+  async findTypesByUser(user: string): Promise<PublicInstrumentType[]> {
+    const types = await this.prisma.instrumento_tipo.findMany({
+      where: { user_created: user },
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        user_created: true,
+        created_at: true,
+        updated_at: true,
+        id_criterio: true,
+      },
+    });
+    return types.map(t => ({
+      id: t.id,
+      nombre: t.nombre ?? null,
+      descripcion: t.descripcion ?? null,
+      user_created: t.user_created ?? null,
+      created_at: t.created_at ?? null,
+      updated_at: t.updated_at ?? null,
+      id_criterio: t.id_criterio ?? null,
+    }));
+  }
+
+  // Return instruments that belong to a given instrument type id
+  async findByType(typeId: number): Promise<PublicInstrument[]> {
+    const instruments = await this.prisma.instrumento.findMany({
+      where: { id_instrumento_tipo: typeId },
+      select: {
+        id: true,
+        id_instrumento_tipo: true,
+        id_tema: true,
+        descripcion: true,
+        recurso: true,
+        activo: true,
+        user_created: true,
+        created_at: true,
+        updated_at: true,
+        disponible: true,
+        resultados: true,
+        color_respuesta: true,
+      },
+    });
+    return instruments.map(i => ({
+      id: i.id,
+      id_instrumento_tipo: i.id_instrumento_tipo ?? null,
+      id_tema: i.id_tema ?? null,
+      descripcion: i.descripcion ?? null,
+      recurso: i.recurso ?? null,
+      activo: i.activo ?? null,
+      user_created: i.user_created ?? null,
+      created_at: i.created_at ?? null,
+      updated_at: i.updated_at ?? null,
+      disponible: i.disponible ?? null,
+      resultados: i.resultados ?? null,
+      color_respuesta: i.color_respuesta ?? null,
+    }));
   }
 }
