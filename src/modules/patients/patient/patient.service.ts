@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
+import { HistoryService } from '../history/history.service';
+import { PatientMedicalHistory } from '../history/entities/history.entity';
 
 export type PublicPatient = {
   id: number;
@@ -20,7 +22,10 @@ export type PublicPatient = {
 
 @Injectable()
 export class PatientService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly historyService: HistoryService,
+  ) {}
 
   async create(createPatientDto: CreatePatientDto): Promise<PublicPatient> {
     const created = await this.prisma.paciente.create({
@@ -218,5 +223,13 @@ export class PatientService {
       created_at: p.created_at ?? null,
       updated_at: p.updated_at ?? null,
     }));
+  }
+
+  async getMedicalHistory(patientId: number): Promise<PatientMedicalHistory> {
+    return this.historyService.getFullMedicalHistory(patientId);
+  }
+
+  async getMedicalHistoryByUserId(userId: number): Promise<PatientMedicalHistory | null> {
+    return this.historyService.getFullMedicalHistoryByUserId(userId);
   }
 }

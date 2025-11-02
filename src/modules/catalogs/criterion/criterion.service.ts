@@ -1,22 +1,20 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { CreateSubjectDto } from './dto/create-subject.dto';
-import { UpdateSubjectDto } from './dto/update-subject.dto';
+import { CreateCriterionDto } from './dto/create-criterion.dto';
+import { UpdateCriterionDto } from './dto/update-criterion.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
-export type PublicSubject = {
+export type PublicCriterion = {
   id: number;
   nombre?: string | null;
   descripcion?: string | null;
   user_created?: string | null;
   created_at?: Date | null;
   updated_at?: Date | null;
-  tipo_instrumento?: string | null;
-  id_cinta?: number | null;
 };
 
 @Injectable()
-export class SubjectsService {
+export class CriterionService {
   constructor(private readonly prisma: PrismaService) {}
 
   private normalizeString(value: unknown): string | null {
@@ -28,31 +26,20 @@ export class SubjectsService {
     return trimmed.length ? trimmed : null;
   }
 
-  private normalizeNumber(value: unknown): number | null {
-    if (value === null || typeof value === 'undefined' || value === '') {
-      return null;
-    }
-
-    const numeric = typeof value === 'number' ? value : Number(value);
-    return Number.isFinite(numeric) ? numeric : null;
-  }
-
-  private buildCreateData(dto: CreateSubjectDto) {
+  private buildCreateData(dto: CreateCriterionDto) {
     const nombre = this.normalizeString(dto.nombre);
     if (!nombre) {
-      throw new BadRequestException('El nombre del tema es obligatorio');
+      throw new BadRequestException('El nombre del criterio es obligatorio');
     }
 
     return {
       nombre,
       descripcion: this.normalizeString(dto.descripcion),
       user_created: this.normalizeString(dto.user_created),
-      tipo_instrumento: this.normalizeString(dto.tipo_instrumento),
-      id_cinta: this.normalizeNumber(dto.id_cinta),
     };
   }
 
-  private buildUpdateData(dto: UpdateSubjectDto) {
+  private buildUpdateData(dto: UpdateCriterionDto) {
     const data: Record<string, unknown> = {};
 
     if (Object.prototype.hasOwnProperty.call(dto, 'nombre')) {
@@ -67,27 +54,17 @@ export class SubjectsService {
       data.user_created = this.normalizeString(dto.user_created);
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'tipo_instrumento')) {
-      data.tipo_instrumento = this.normalizeString(dto.tipo_instrumento);
-    }
-
-    if (Object.prototype.hasOwnProperty.call(dto, 'id_cinta')) {
-      data.id_cinta = this.normalizeNumber(dto.id_cinta);
-    }
-
     return data;
   }
 
-  private mapSubject<TEntity extends {
+  private mapCriterion<TEntity extends {
     id: number;
     nombre: string | null;
     descripcion: string | null;
     user_created: string | null;
     created_at: Date | null;
     updated_at: Date | null;
-    tipo_instrumento: string | null;
-    id_cinta: number | null;
-  }>(record: TEntity): PublicSubject {
+  }>(record: TEntity): PublicCriterion {
     return {
       id: record.id,
       nombre: record.nombre ?? null,
@@ -95,15 +72,13 @@ export class SubjectsService {
       user_created: record.user_created ?? null,
       created_at: record.created_at ?? null,
       updated_at: record.updated_at ?? null,
-      tipo_instrumento: record.tipo_instrumento ?? null,
-      id_cinta: record.id_cinta ?? null,
     };
   }
 
-  async create(createSubjectDto: CreateSubjectDto): Promise<PublicSubject> {
-    const data = this.buildCreateData(createSubjectDto);
+  async create(createCriterionDto: CreateCriterionDto): Promise<PublicCriterion> {
+    const data = this.buildCreateData(createCriterionDto);
 
-    const created = await this.prisma.tema.create({
+    const created = await this.prisma.criterio.create({
       data,
       select: {
         id: true,
@@ -112,16 +87,14 @@ export class SubjectsService {
         user_created: true,
         created_at: true,
         updated_at: true,
-        tipo_instrumento: true,
-        id_cinta: true,
       },
     });
 
-    return this.mapSubject(created);
+    return this.mapCriterion(created);
   }
 
-  async findAll(): Promise<PublicSubject[]> {
-    const subjects = await this.prisma.tema.findMany({
+  async findAll(): Promise<PublicCriterion[]> {
+    const criteria = await this.prisma.criterio.findMany({
       select: {
         id: true,
         nombre: true,
@@ -129,19 +102,17 @@ export class SubjectsService {
         user_created: true,
         created_at: true,
         updated_at: true,
-        tipo_instrumento: true,
-        id_cinta: true,
       },
       orderBy: {
         nombre: 'asc',
       },
     });
 
-    return subjects.map((subject) => this.mapSubject(subject));
+    return criteria.map((criterion) => this.mapCriterion(criterion));
   }
 
-  async findOne(id: number): Promise<PublicSubject> {
-    const subject = await this.prisma.tema.findUnique({
+  async findOne(id: number): Promise<PublicCriterion> {
+    const criterion = await this.prisma.criterio.findUnique({
       where: { id },
       select: {
         id: true,
@@ -150,27 +121,25 @@ export class SubjectsService {
         user_created: true,
         created_at: true,
         updated_at: true,
-        tipo_instrumento: true,
-        id_cinta: true,
       },
     });
 
-    if (!subject) {
-      throw new NotFoundException(`Subject with id ${id} not found`);
+    if (!criterion) {
+      throw new NotFoundException(`Criterion with id ${id} not found`);
     }
 
-    return this.mapSubject(subject);
+    return this.mapCriterion(criterion);
   }
 
-  async update(id: number, updateSubjectDto: UpdateSubjectDto): Promise<PublicSubject> {
-    const data = this.buildUpdateData(updateSubjectDto);
+  async update(id: number, updateCriterionDto: UpdateCriterionDto): Promise<PublicCriterion> {
+    const data = this.buildUpdateData(updateCriterionDto);
 
     if (Object.keys(data).length === 0) {
       return this.findOne(id);
     }
 
     try {
-      const updated = await this.prisma.tema.update({
+      const updated = await this.prisma.criterio.update({
         where: { id },
         data,
         select: {
@@ -180,15 +149,13 @@ export class SubjectsService {
           user_created: true,
           created_at: true,
           updated_at: true,
-          tipo_instrumento: true,
-          id_cinta: true,
         },
       });
 
-      return this.mapSubject(updated);
+      return this.mapCriterion(updated);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-        throw new NotFoundException(`Subject with id ${id} not found`);
+        throw new NotFoundException(`Criterion with id ${id} not found`);
       }
       throw error;
     }
@@ -196,11 +163,11 @@ export class SubjectsService {
 
   async remove(id: number): Promise<{ deleted: boolean }> {
     try {
-      await this.prisma.tema.delete({ where: { id } });
+      await this.prisma.criterio.delete({ where: { id } });
       return { deleted: true };
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-        throw new NotFoundException(`Subject with id ${id} not found`);
+        throw new NotFoundException(`Criterion with id ${id} not found`);
       }
       throw error;
     }

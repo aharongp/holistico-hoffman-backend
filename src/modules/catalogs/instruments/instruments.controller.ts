@@ -2,6 +2,8 @@ import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/commo
 import { InstrumentsService } from './instruments.service';
 import { CreateInstrumentDto } from './dto/create-instrument.dto';
 import { UpdateInstrumentDto } from './dto/update-instrument.dto';
+import { CreateInstrumentTypeDto } from './dto/create-instrument-type.dto';
+import { UpdateInstrumentTypeDto } from './dto/update-instrument-type.dto';
 
 @Controller('instruments')
 export class InstrumentsController {
@@ -21,6 +23,21 @@ export class InstrumentsController {
   @Get('types')
   findTypes() {
     return this.instrumentsService.findTypes();
+  }
+
+  @Post('types')
+  createType(@Body() createInstrumentTypeDto: CreateInstrumentTypeDto) {
+    return this.instrumentsService.createType(createInstrumentTypeDto);
+  }
+
+  @Patch('types/:id')
+  updateType(@Param('id') id: string, @Body() updateInstrumentTypeDto: UpdateInstrumentTypeDto) {
+    return this.instrumentsService.updateType(Number(id), updateInstrumentTypeDto);
+  }
+
+  @Delete('types/:id')
+  removeType(@Param('id') id: string) {
+    return this.instrumentsService.removeType(Number(id));
   }
 
   // GET /instruments/types/:user -> instrument types created by specific user

@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { CreateProgramDto } from './dto/create-program.dto';
 import { UpdateProgramDto } from './dto/update-program.dto';
 import { CreateProgramActivityDto } from './dto/create-program-activity.dto';
+import { UpdateProgramActivityDto } from './dto/update-program-activity.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 export type PublicProgram = {
@@ -28,6 +29,34 @@ export type PublicActivity = {
 export type PublicProgramDetails = PublicProgram & {
   activities: PublicActivity[];
 };
+
+const DAY_ABBREVIATIONS: Record<string, string> = {
+  mon: 'Mon',
+  monday: 'Mon',
+  lunes: 'Mon',
+  tue: 'Tue',
+  tuesday: 'Tue',
+  martes: 'Tue',
+  wed: 'Wed',
+  wednesday: 'Wed',
+  miercoles: 'Wed',
+  miércoles: 'Wed',
+  thu: 'Thu',
+  thursday: 'Thu',
+  jueves: 'Thu',
+  fri: 'Fri',
+  friday: 'Fri',
+  viernes: 'Fri',
+  sat: 'Sat',
+  saturday: 'Sat',
+  sabado: 'Sat',
+  sábado: 'Sat',
+  sun: 'Sun',
+  sunday: 'Sun',
+  domingo: 'Sun',
+};
+
+const ALLOWED_DAY_CODES = new Set(Object.values(DAY_ABBREVIATIONS));
 
 @Injectable()
 export class ProgramsService {
@@ -262,19 +291,12 @@ export class ProgramsService {
     }
 
     const descripcion = typeof rawDescription === 'string' ? rawDescription.trim() : null;
-    const dia = typeof rawDay === 'string' ? rawDay.trim() || null : null;
+    const dia = this.normalizeDay(typeof rawDay === 'string' ? rawDay : null);
     const userCreated = typeof rawUserCreated === 'string' ? rawUserCreated.trim() || null : null;
 
     let hora: Date | null = null;
     if (typeof rawTime === 'string' && rawTime.trim()) {
-      const normalized = rawTime.trim();
-      const match = normalized.match(/^([0-1]?\d|2[0-3]):([0-5]\d)$/);
-      if (!match) {
-        throw new BadRequestException('El formato de hora debe ser HH:mm');
-      }
-      const hours = Number(match[1]);
-      const minutes = Number(match[2]);
-      hora = new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0));
+      hora = this.parseTime(rawTime);
     }
 
     const created = await this.prisma.actividad.create({
@@ -285,6 +307,8 @@ export class ProgramsService {
         hora,
         id_programa: id,
         user_created: userCreated,
+        created_at: new Date(),
+        updated_at: new Date(),
       },
       select: {
         id: true,
@@ -299,6 +323,120 @@ export class ProgramsService {
     });
 
     return this.mapActivity(created);
+  }
+
+  private normalizeDay(value: string | null): string | null {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = value.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    const lookupKey = normalized.toLowerCase();
+    const mapped = DAY_ABBREVIATIONS[lookupKey];
+    if (mapped) {
+      return mapped;
+    }
+
+    const upperCased = normalized.charAt(0).toUpperCase() + normalized.slice(1, 3).toLowerCase();
+    if (ALLOWED_DAY_CODES.has(upperCased)) {
+      return upperCased;
+    }
+
+    throw new BadRequestException('El día de la actividad es inválido. Usa Mon, Tue, Wed, Thu, Fri, Sat o Sun.');
+  }
+
+  private parseTime(rawTime: string): Date {
+    const normalized = rawTime.trim();
+    const match = normalized.match(/^([0-1]?\d|2[0-3]):([0-5]\d)$/);
+    if (!match) {
+      throw new BadRequestException('El formato de hora debe ser HH:mm');
+    }
+    const hours = Number(match[1]);
+    const minutes = Number(match[2]);
+    return new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0));
+  }
+
+  async updateActivityOnProgram(id: number, activityId: number, dto: UpdateProgramActivityDto): Promise<PublicActivity> {
+    const activity = await this.prisma.actividad.findUnique({
+      where: { id: activityId },
+      select: {
+        id_programa: true,
+      },
+    });
+
+    if (!activity || activity.id_programa !== id) {
+      throw new NotFoundException(`Actividad ${activityId} no encontrada para el programa ${id}`);
+    }
+
+    const data: Prisma.actividadUpdateInput = {
+      updated_at: new Date(),
+    };
+
+    if (Object.prototype.hasOwnProperty.call(dto, 'nombre')) {
+      const rawName = (dto as any).nombre ?? (dto as any).name ?? null;
+      const nombre = typeof rawName === 'string' ? rawName.trim() : null;
+      if (!nombre) {
+        throw new BadRequestException('El nombre de la actividad es obligatorio');
+      }
+      data.nombre = nombre;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(dto, 'descripcion')) {
+      const rawDescription = (dto as any).descripcion ?? (dto as any).description ?? null;
+      data.descripcion = typeof rawDescription === 'string' ? rawDescription.trim() || null : null;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(dto, 'dia')) {
+      const rawDay = (dto as any).dia ?? (dto as any).day ?? null;
+      data.dia = this.normalizeDay(typeof rawDay === 'string' ? rawDay : null);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(dto, 'hora')) {
+      const rawTime = (dto as any).hora ?? (dto as any).time ?? null;
+      if (rawTime === null) {
+        data.hora = null;
+      } else if (typeof rawTime === 'string' && rawTime.trim()) {
+        data.hora = this.parseTime(rawTime);
+      } else {
+        data.hora = null;
+      }
+    }
+
+    const updated = await this.prisma.actividad.update({
+      where: { id: activityId },
+      data,
+      select: {
+        id: true,
+        nombre: true,
+        descripcion: true,
+        dia: true,
+        hora: true,
+        user_created: true,
+        created_at: true,
+        updated_at: true,
+      },
+    });
+
+    return this.mapActivity(updated);
+  }
+
+  async removeActivityFromProgram(id: number, activityId: number): Promise<{ deleted: boolean; id: number }> {
+    const activity = await this.prisma.actividad.findUnique({
+      where: { id: activityId },
+      select: { id_programa: true },
+    });
+
+    if (!activity || activity.id_programa !== id) {
+      throw new NotFoundException(`Actividad ${activityId} no encontrada para el programa ${id}`);
+    }
+
+    await this.prisma.actividad.delete({ where: { id: activityId } });
+
+    return { deleted: true, id: activityId };
   }
 
   async remove(id: number): Promise<{ deleted: boolean; id: number }> {

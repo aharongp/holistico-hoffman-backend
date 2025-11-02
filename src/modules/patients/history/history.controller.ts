@@ -1,34 +1,72 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
 import { HistoryService } from './history.service';
-import { CreateHistoryDto } from './dto/create-history.dto';
-import { UpdateHistoryDto } from './dto/update-history.dto';
 
-@Controller('history')
+@Controller('patients/history')
 export class HistoryController {
   constructor(private readonly historyService: HistoryService) {}
 
-  @Post()
-  create(@Body() createHistoryDto: CreateHistoryDto) {
-    return this.historyService.create(createHistoryDto);
+  @Get(':patientId/personal')
+  getPersonalHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getPersonalHistory(patientId);
   }
 
-  @Get()
-  findAll() {
-    return this.historyService.findAll();
+  @Get(':patientId/contact')
+  getContactHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getContactHistory(patientId);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.historyService.findOne(+id);
+  @Get(':patientId/treating-doctor')
+  getTreatingDoctorHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getTreatingDoctorHistory(patientId);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateHistoryDto: UpdateHistoryDto) {
-    return this.historyService.update(+id, updateHistoryDto);
+  @Get(':patientId/family')
+  getFamilyHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getFamilyHistory(patientId);
   }
 
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.historyService.remove(+id);
+  @Get(':patientId/immunizations')
+  getImmunizationHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getImmunizationHistory(patientId);
+  }
+
+  @Get(':patientId/gynecological')
+  getGynecologicalHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getGynecologicalHistory(patientId);
+  }
+
+  @Get(':patientId/lifestyle')
+  getLifestyleHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getLifestyleHistory(patientId);
+  }
+
+  @Get(':patientId/clinical-background')
+  getClinicalBackgroundHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getClinicalBackgroundHistory(patientId);
+  }
+
+  @Get(':patientId/attachments')
+  getMedicalAttachments(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getMedicalAttachments(patientId);
+  }
+
+  @Get(':patientId/consultations')
+  getMedicalConsultations(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getMedicalConsultations(patientId);
+  }
+
+  @Get(':patientId/coach-consultations')
+  getCoachConsultations(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getCoachConsultations(patientId);
+  }
+
+  @Get(':patientId/diseases')
+  getDiseaseHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getDiseaseHistory(patientId);
+  }
+
+  @Get(':patientId/full')
+  getFullMedicalHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.getFullMedicalHistory(patientId);
   }
 }

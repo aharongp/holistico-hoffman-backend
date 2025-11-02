@@ -3,6 +3,7 @@ import { ProgramsService } from './programs.service';
 import { CreateProgramDto } from './dto/create-program.dto';
 import { UpdateProgramDto } from './dto/update-program.dto';
 import { CreateProgramActivityDto } from './dto/create-program-activity.dto';
+import { UpdateProgramActivityDto } from './dto/update-program-activity.dto';
 
 @Controller('programs')
 export class ProgramsController {
@@ -34,6 +35,23 @@ export class ProgramsController {
     @Body() createProgramActivityDto: CreateProgramActivityDto,
   ) {
     return this.programsService.addActivityToProgram(id, createProgramActivityDto);
+  }
+
+  @Patch(':id/activities/:activityId')
+  updateActivity(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('activityId', ParseIntPipe) activityId: number,
+    @Body() updateProgramActivityDto: UpdateProgramActivityDto,
+  ) {
+    return this.programsService.updateActivityOnProgram(id, activityId, updateProgramActivityDto);
+  }
+
+  @Delete(':id/activities/:activityId')
+  removeActivity(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('activityId', ParseIntPipe) activityId: number,
+  ) {
+    return this.programsService.removeActivityFromProgram(id, activityId);
   }
 
   @Patch(':id')

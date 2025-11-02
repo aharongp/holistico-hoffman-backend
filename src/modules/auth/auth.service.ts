@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { PrismaService } from 'src/prisma/prisma.service';
+import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { createHash } from 'crypto';
@@ -83,7 +83,7 @@ export class AuthService {
     const normalizeRole = (role: string | null | undefined): string => {
       const value = (role ?? '').toString().trim().toLowerCase();
       if (['administrator', 'admin', 'administrador'].includes(value)) return 'administrator';
-      if (['patient', 'paciente'].includes(value)) return 'patient';
+  if (['patient', 'paciente', 'usuario', 'user', 'usuarios'].includes(value)) return 'patient';
       if (['student', 'estudiante'].includes(value)) return 'student';
       if (['therapist', 'therapeuta'].includes(value)) return 'therapist';
       if (['coach'].includes(value)) return 'coach';

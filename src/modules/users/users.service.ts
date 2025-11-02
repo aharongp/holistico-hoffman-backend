@@ -1,5 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CreateUserDto } from './dto/create-user.dto';
 
 export type PublicUser = {
   id: number;
@@ -17,6 +18,50 @@ export type PublicUser = {
 export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
+  private joinNames(firstName: string, lastName: string): string {
+    const parts = [firstName, lastName].map(part => part.trim()).filter(Boolean);
+    return parts.join(' ').trim();
+  }
+
+  private extractNames(
+    username?: string | null,
+    fallback?: { firstName?: string | null; lastName?: string | null },
+  ): { firstName: string | null; lastName: string | null } {
+    if (username && username.trim()) {
+      const trimmed = username.trim();
+      const segments = trimmed.split(/\s+/);
+      if (segments.length === 1) {
+        return { firstName: segments[0], lastName: fallback?.lastName ?? null };
+      }
+      return {
+        firstName: segments[0],
+        lastName: segments.slice(1).join(' ') || (fallback?.lastName ?? null),
+      };
+    }
+    return {
+      firstName: fallback?.firstName ?? null,
+      lastName: fallback?.lastName ?? null,
+    };
+  }
+
+  private mapUser<TEntity extends { id: number; email: string | null; username: string | null; rol: string | null; created_at: Date | null; updated_at: Date | null; active: number | null }>(
+    record: TEntity,
+    fallbackNames?: { firstName?: string | null; lastName?: string | null },
+  ): PublicUser {
+    const { firstName, lastName } = this.extractNames(record.username, fallbackNames);
+    return {
+      id: record.id,
+      email: record.email,
+      username: record.username,
+      firstName,
+      lastName,
+      rol: record.rol ?? null,
+      created_at: record.created_at ?? null,
+      last_login: record.updated_at ?? null,
+      active: record.active ?? null,
+    };
+  }
+
   async findAll(): Promise<PublicUser[]> {
     const users = await this.prisma.usuario.findMany({
       select: {
@@ -31,17 +76,7 @@ export class UsersService {
       },
     });
 
-    return users.map(u => ({
-      id: u.id,
-      email: u.email,
-      username: u.username,
-      firstName: (u as any).nombres ?? null,
-      lastName: (u as any).apellidos ?? null,
-      rol: u.rol ?? null,
-      created_at: u.created_at ?? null,
-      last_login: u.updated_at ?? null,
-      active: u.active ?? null,
-    }));
+    return users.map(u => this.mapUser(u));
   }
 
   async findOne(id: number): Promise<PublicUser | null> {
@@ -58,28 +93,45 @@ export class UsersService {
       },
     });
     if (!u) return null;
-    return {
-      id: u.id,
-      email: u.email,
-      username: u.username,
-      firstName: (u as any).nombres ?? null,
-      lastName: (u as any).apellidos ?? null,
-      rol: u.rol ?? null,
-      created_at: u.created_at ?? null,
-      last_login: u.updated_at ?? null,
-      active: u.active ?? null,
-    };
+    return this.mapUser(u);
   }
 
-  async create(data: any): Promise<PublicUser> {
-    // minimal create mapping; expects fields like email, username, nombres, apellidos, rol
+  async create(createUserDto: CreateUserDto): Promise<PublicUser> {
+    const rawFirstName = createUserDto.firstName ?? (createUserDto as any).first_name ?? '';
+    const rawLastName = createUserDto.lastName ?? (createUserDto as any).last_name ?? '';
+    const rawEmail = createUserDto.email ?? (createUserDto as any).correo ?? '';
+    const rawRole = createUserDto.role ?? (createUserDto as any).rol ?? (createUserDto as any).role ?? '';
+
+    const firstName = rawFirstName.toString().trim();
+    const lastName = rawLastName.toString().trim();
+    const email = rawEmail.toString().trim().toLowerCase();
+    const role = rawRole.toString().trim();
+
+    if (!firstName) {
+      throw new BadRequestException('El nombre es obligatorio');
+    }
+
+    if (!lastName) {
+      throw new BadRequestException('El apellido es obligatorio');
+    }
+
+    if (!email) {
+      throw new BadRequestException('El correo electrónico es obligatorio');
+    }
+
+    if (!role) {
+      throw new BadRequestException('El rol es obligatorio');
+    }
+
+    const username = this.joinNames(firstName, lastName);
+
     const created = await this.prisma.usuario.create({
       data: {
-        email: data.email,
-        username: data.username,
-        password: data.password ?? null,
-        rol: data.role ?? data.rol ?? null,
-        active: data.isActive ?? 1,
+        email,
+        username,
+        password: null,
+        rol: role,
+        active: 1,
       },
       select: {
         id: true,
@@ -92,17 +144,7 @@ export class UsersService {
         active: true,
       },
     });
-    return {
-      id: created.id,
-      email: created.email,
-      username: created.username,
-      firstName: (created as any).nombres ?? null,
-      lastName: (created as any).apellidos ?? null,
-      rol: created.rol ?? null,
-      created_at: created.created_at ?? null,
-      last_login: created.updated_at ?? null,
-      active: created.active ?? null,
-    };
+    return this.mapUser(created, { firstName, lastName });
   }
 
   async update(id: number, data: any): Promise<PublicUser | null> {
