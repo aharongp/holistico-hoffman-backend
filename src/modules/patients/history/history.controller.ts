@@ -1,5 +1,6 @@
-import { Controller, Get, Param, ParseIntPipe } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Put } from '@nestjs/common';
 import { HistoryService } from './history.service';
+import type { UpdateHistoryDto } from './dto/update-history.dto';
 
 @Controller('patients/history')
 export class HistoryController {
@@ -45,6 +46,11 @@ export class HistoryController {
     return this.historyService.getClinicalBackgroundHistory(patientId);
   }
 
+  @Get('attachments')
+  getAllMedicalAttachments() {
+    return this.historyService.getAllMedicalAttachments();
+  }
+
   @Get(':patientId/attachments')
   getMedicalAttachments(@Param('patientId', ParseIntPipe) patientId: number) {
     return this.historyService.getMedicalAttachments(patientId);
@@ -68,5 +74,13 @@ export class HistoryController {
   @Get(':patientId/full')
   getFullMedicalHistory(@Param('patientId', ParseIntPipe) patientId: number) {
     return this.historyService.getFullMedicalHistory(patientId);
+  }
+
+  @Put(':patientId/full')
+  updateFullMedicalHistory(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Body() payload: UpdateHistoryDto,
+  ) {
+    return this.historyService.updateFullMedicalHistory(patientId, payload);
   }
 }

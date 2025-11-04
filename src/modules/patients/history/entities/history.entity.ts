@@ -138,6 +138,11 @@ export interface PatientMedicalAttachment {
 	updatedAt: string | null;
 }
 
+export interface PatientMedicalAttachmentWithPatient extends PatientMedicalAttachment {
+	patientId: number | null;
+	userId: number | null;
+}
+
 export interface PatientMedicalConsultation {
 	id: number;
 	reason: string | null;

@@ -1,12 +1,14 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { HistoryService } from '../history/history.service';
 import { PatientMedicalHistory } from '../history/entities/history.entity';
+import { UpdateHistoryDto } from '../history/dto/update-history.dto';
 
 export type PublicPatient = {
   id: number;
+  id_usuario?: number | null;
   cedula?: string | null;
   nombres?: string | null;
   apellidos?: string | null;
@@ -18,6 +20,13 @@ export type PublicPatient = {
   id_programa?: number | null;
   created_at?: Date | null;
   updated_at?: Date | null;
+};
+
+type UploadableAttachment = {
+  buffer: Buffer;
+  originalname?: string | null;
+  mimetype?: string | null;
+  size?: number | null;
 };
 
 @Injectable()
@@ -43,6 +52,7 @@ export class PatientService {
       select: {
         id: true,
         cedula: true,
+        id_usuario: true,
         nombres: true,
         apellidos: true,
         genero: true,
@@ -58,6 +68,7 @@ export class PatientService {
     return {
       id: created.id,
       cedula: created.cedula ?? null,
+      id_usuario: created.id_usuario ?? null,
       nombres: created.nombres ?? null,
       apellidos: created.apellidos ?? null,
       genero: created.genero ?? null,
@@ -76,6 +87,7 @@ export class PatientService {
       select: {
         id: true,
         cedula: true,
+        id_usuario: true,
         nombres: true,
         apellidos: true,
         genero: true,
@@ -91,6 +103,7 @@ export class PatientService {
     return patients.map(p => ({
       id: p.id,
       cedula: p.cedula ?? null,
+      id_usuario: p.id_usuario ?? null,
       nombres: p.nombres ?? null,
       apellidos: p.apellidos ?? null,
       genero: p.genero ?? null,
@@ -110,6 +123,7 @@ export class PatientService {
       select: {
         id: true,
         cedula: true,
+        id_usuario: true,
         nombres: true,
         apellidos: true,
         genero: true,
@@ -126,6 +140,7 @@ export class PatientService {
     return {
       id: p.id,
       cedula: p.cedula ?? null,
+      id_usuario: p.id_usuario ?? null,
       nombres: p.nombres ?? null,
       apellidos: p.apellidos ?? null,
       genero: p.genero ?? null,
@@ -156,6 +171,7 @@ export class PatientService {
       select: {
         id: true,
         cedula: true,
+        id_usuario: true,
         nombres: true,
         apellidos: true,
         genero: true,
@@ -172,6 +188,7 @@ export class PatientService {
     return {
       id: updated.id,
       cedula: updated.cedula ?? null,
+      id_usuario: updated.id_usuario ?? null,
       nombres: updated.nombres ?? null,
       apellidos: updated.apellidos ?? null,
       genero: updated.genero ?? null,
@@ -196,6 +213,7 @@ export class PatientService {
       select: {
         id: true,
         cedula: true,
+        id_usuario: true,
         nombres: true,
         apellidos: true,
         genero: true,
@@ -212,6 +230,7 @@ export class PatientService {
     return patients.map(p => ({
       id: p.id,
       cedula: p.cedula ?? null,
+      id_usuario: p.id_usuario ?? null,
       nombres: p.nombres ?? null,
       apellidos: p.apellidos ?? null,
       genero: p.genero ?? null,
@@ -231,5 +250,45 @@ export class PatientService {
 
   async getMedicalHistoryByUserId(userId: number): Promise<PatientMedicalHistory | null> {
     return this.historyService.getFullMedicalHistoryByUserId(userId);
+  }
+
+  async updateMedicalHistory(patientId: number, payload: UpdateHistoryDto): Promise<PatientMedicalHistory> {
+    return this.historyService.updateFullMedicalHistory(patientId, payload);
+  }
+
+  async updateMedicalHistoryByUserId(userId: number, payload: UpdateHistoryDto): Promise<PatientMedicalHistory> {
+    return this.historyService.updateFullMedicalHistoryByUserId(userId, payload);
+  }
+
+  async uploadAttachment(patientId: number, file: UploadableAttachment) {
+    return this.historyService.saveMedicalAttachment(patientId, file);
+  }
+
+  async uploadAttachmentByUserId(userId: number, file: UploadableAttachment) {
+    const patientRecord = await this.prisma.paciente.findFirst({ where: { id_usuario: userId } });
+    if (!patientRecord) {
+      throw new NotFoundException('Patient not found for the provided user');
+    }
+    return this.uploadAttachment(patientRecord.id, file);
+  }
+
+  async getAttachments(patientId: number) {
+    return this.historyService.getMedicalAttachments(patientId);
+  }
+
+  async getAllAttachments() {
+    return this.historyService.getAllMedicalAttachments();
+  }
+
+  async getAttachmentFile(attachmentId: number) {
+    return this.historyService.getAttachmentFile(attachmentId);
+  }
+
+  async getAttachmentsByUserId(userId: number) {
+    const patientRecord = await this.prisma.paciente.findFirst({ where: { id_usuario: userId } });
+    if (!patientRecord) {
+      return [] as any[];
+    }
+    return this.getAttachments(patientRecord.id);
   }
 }
