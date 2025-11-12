@@ -1,8 +1,11 @@
 export type VitalSource =
-  | 'consultation'
-  | 'pulse'
+	| 'consultation'
+	| 'pulse'
 	| 'glycemia'
-	| 'heart_rate';
+	| 'heart_rate'
+	| 'weight'
+	| 'body_mass'
+	| 'blood_pressure';
 
 export interface BaseVitalRecord {
 	id: number;
