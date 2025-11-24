@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
 import { PatientInstrumentsService } from './patient-instruments.service';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
@@ -17,18 +17,28 @@ export class PatientInstrumentsController {
     return this.patientInstrumentsService.findAll();
   }
 
+  @Get('patient/:patientId')
+  findByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.patientInstrumentsService.findByPatient(patientId);
+  }
+
+  @Get('user/:userId')
+  findByUser(@Param('userId', ParseIntPipe) userId: number) {
+    return this.patientInstrumentsService.findByUser(userId);
+  }
+
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.patientInstrumentsService.findOne(+id);
+  findOne(@Param('id', ParseIntPipe) id: number) {
+    return this.patientInstrumentsService.findOne(id);
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updatePatientInstrumentDto: UpdatePatientInstrumentDto) {
-    return this.patientInstrumentsService.update(+id, updatePatientInstrumentDto);
+  update(@Param('id', ParseIntPipe) id: number, @Body() updatePatientInstrumentDto: UpdatePatientInstrumentDto) {
+    return this.patientInstrumentsService.update(id, updatePatientInstrumentDto);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.patientInstrumentsService.remove(+id);
+  remove(@Param('id', ParseIntPipe) id: number) {
+    return this.patientInstrumentsService.remove(id);
   }
 }
