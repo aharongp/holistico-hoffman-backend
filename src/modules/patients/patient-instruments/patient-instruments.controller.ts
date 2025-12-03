@@ -17,6 +17,11 @@ export class PatientInstrumentsController {
     return this.patientInstrumentsService.findAll();
   }
 
+  @Get('graphics')
+  findAllInstrumentGraphics() {
+    return this.patientInstrumentsService.findAllInstrumentGraphics();
+  }
+
   @Get('patient/:patientId')
   findByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
     return this.patientInstrumentsService.findByPatient(patientId);

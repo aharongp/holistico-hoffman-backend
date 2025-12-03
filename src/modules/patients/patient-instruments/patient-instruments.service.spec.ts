@@ -8,6 +8,7 @@ describe('PatientInstrumentsService', () => {
   beforeEach(async () => {
     const prismaMock = {
       paciente_instrumento: { findMany: jest.fn().mockResolvedValue([]) },
+      instrumento_grafico: { findMany: jest.fn().mockResolvedValue([]) },
       instrumento_tipo: { findMany: jest.fn().mockResolvedValue([]) },
       paciente: {
         findUnique: jest.fn().mockResolvedValue({ id: 1 }),

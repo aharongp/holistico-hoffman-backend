@@ -16,3 +16,16 @@ export interface PatientInstrumentAssignment {
 	ribbonId: number | null;
 	topics: string[];
 }
+
+export interface InstrumentGraphic {
+	id: number;
+	instrumentId: number | null;
+	title: string | null;
+	sentence: string | null;
+	chartType: string | null;
+	width: number | null;
+	height: number | null;
+	createdAt: string | null;
+	updatedAt: string | null;
+	criterionId: number | null;
+}

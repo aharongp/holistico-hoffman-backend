@@ -2,8 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PatientInstrumentAssignment } from './entities/patient-instrument.entity';
-import { paciente_instrumento } from '@prisma/client';
+import { InstrumentGraphic, PatientInstrumentAssignment } from './entities/patient-instrument.entity';
+import { paciente_instrumento, instrumento_grafico } from '@prisma/client';
 
 @Injectable()
 export class PatientInstrumentsService {
@@ -22,6 +22,17 @@ export class PatientInstrumentsService {
     });
 
     return this.mapAssignments(records);
+  }
+
+  async findAllInstrumentGraphics(): Promise<InstrumentGraphic[]> {
+    const records = await this.prisma.instrumento_grafico.findMany({
+      orderBy: [
+        { created_at: 'desc' },
+        { id: 'desc' },
+      ],
+    });
+
+    return this.mapInstrumentGraphics(records);
   }
 
   async findOne(id: number): Promise<PatientInstrumentAssignment | null> {
@@ -141,6 +152,25 @@ export class PatientInstrumentsService {
         topics: this.parseTopics(record.array_tema),
       };
     });
+  }
+
+  private mapInstrumentGraphics(records: instrumento_grafico[]): InstrumentGraphic[] {
+    if (!records.length) {
+      return [];
+    }
+
+    return records.map<InstrumentGraphic>((record) => ({
+      id: record.id,
+      instrumentId: record.id_instrumento ?? null,
+      title: record.titulo ?? null,
+      sentence: record.sentencia ?? null,
+      chartType: record.tipo_grafico ?? null,
+      width: record.ancho ?? null,
+      height: record.alto ?? null,
+      createdAt: this.toIso(record.created_at),
+      updatedAt: this.toIso(record.updated_at),
+      criterionId: record.id_criterio ?? null,
+    }));
   }
 
   private toIso(value: Date | null | undefined): string | null {
