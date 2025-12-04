@@ -2,8 +2,8 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { InstrumentGraphic, PatientInstrumentAssignment } from './entities/patient-instrument.entity';
-import { paciente_instrumento, instrumento_grafico } from '@prisma/client';
+import { PatientInstrumentAssignment, PatientInstrumentResponse } from './entities/patient-instrument.entity';
+import { paciente_instrumento, paciente_instrumento_respuesta } from '@prisma/client';
 
 @Injectable()
 export class PatientInstrumentsService {
@@ -22,17 +22,6 @@ export class PatientInstrumentsService {
     });
 
     return this.mapAssignments(records);
-  }
-
-  async findAllInstrumentGraphics(): Promise<InstrumentGraphic[]> {
-    const records = await this.prisma.instrumento_grafico.findMany({
-      orderBy: [
-        { created_at: 'desc' },
-        { id: 'desc' },
-      ],
-    });
-
-    return this.mapInstrumentGraphics(records);
   }
 
   async findOne(id: number): Promise<PatientInstrumentAssignment | null> {
@@ -74,6 +63,26 @@ export class PatientInstrumentsService {
   async findByUser(userId: number): Promise<PatientInstrumentAssignment[]> {
     const patientId = await this.resolvePatientIdByUser(userId);
     return this.findByPatient(patientId);
+  }
+
+  async findResponsesByPatient(patientId: number): Promise<PatientInstrumentResponse[]> {
+    await this.ensurePatientExists(patientId);
+
+    const records = await this.prisma.paciente_instrumento_respuesta.findMany({
+      where: { id_paciente: patientId },
+      orderBy: [
+        { fecha: 'desc' },
+        { created_at: 'desc' },
+        { id: 'desc' },
+      ],
+    });
+
+    return this.mapInstrumentResponses(records);
+  }
+
+  async findResponsesByUser(userId: number): Promise<PatientInstrumentResponse[]> {
+    const patientId = await this.resolvePatientIdByUser(userId);
+    return this.findResponsesByPatient(patientId);
   }
 
   private async ensurePatientExists(patientId: number): Promise<void> {
@@ -154,22 +163,32 @@ export class PatientInstrumentsService {
     });
   }
 
-  private mapInstrumentGraphics(records: instrumento_grafico[]): InstrumentGraphic[] {
+  private mapInstrumentResponses(records: paciente_instrumento_respuesta[]): PatientInstrumentResponse[] {
     if (!records.length) {
       return [];
     }
 
-    return records.map<InstrumentGraphic>((record) => ({
+    return records.map<PatientInstrumentResponse>((record) => ({
       id: record.id,
+      patientId: record.id_paciente ?? null,
+      patientInstrumentId: record.id_paciente_instrumento ?? null,
       instrumentId: record.id_instrumento ?? null,
-      title: record.titulo ?? null,
-      sentence: record.sentencia ?? null,
-      chartType: record.tipo_grafico ?? null,
-      width: record.ancho ?? null,
-      height: record.alto ?? null,
+      instrumentTypeId: record.id_instrumento_tipo ?? null,
+      topicId: record.id_tema ?? null,
+      criterionId: record.id_criterio ?? null,
+      questionId: record.id_pregunta ?? null,
+      theme: this.toStringOrNull(record.tema),
+      topic: this.toStringOrNull(record.topico),
+      question: this.toStringOrNull(record.pregunta),
+      answer: this.toStringOrNull(record.respuesta),
+      competence: this.toStringOrNull(record.competencia),
+      type: this.toStringOrNull(record.tipo_instrumento),
+      order: record.orden ?? null,
+      saved: this.toBoolean(record.guardado),
+      evaluated: this.toBoolean(record.evaluado),
+      answerDate: this.toIso(record.fecha),
       createdAt: this.toIso(record.created_at),
       updatedAt: this.toIso(record.updated_at),
-      criterionId: record.id_criterio ?? null,
     }));
   }
 

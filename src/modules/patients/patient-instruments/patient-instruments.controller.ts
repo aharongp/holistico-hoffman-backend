@@ -17,11 +17,6 @@ export class PatientInstrumentsController {
     return this.patientInstrumentsService.findAll();
   }
 
-  @Get('graphics')
-  findAllInstrumentGraphics() {
-    return this.patientInstrumentsService.findAllInstrumentGraphics();
-  }
-
   @Get('patient/:patientId')
   findByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
     return this.patientInstrumentsService.findByPatient(patientId);
@@ -30,6 +25,16 @@ export class PatientInstrumentsController {
   @Get('user/:userId')
   findByUser(@Param('userId', ParseIntPipe) userId: number) {
     return this.patientInstrumentsService.findByUser(userId);
+  }
+
+  @Get('responses/patient/:patientId')
+  findResponsesByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.patientInstrumentsService.findResponsesByPatient(patientId);
+  }
+
+  @Get('responses/user/:userId')
+  findResponsesByUser(@Param('userId', ParseIntPipe) userId: number) {
+    return this.patientInstrumentsService.findResponsesByUser(userId);
   }
 
   @Get(':id')

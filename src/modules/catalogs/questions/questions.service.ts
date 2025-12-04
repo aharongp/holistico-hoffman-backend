@@ -196,10 +196,15 @@ export class QuestionsService {
       throw new BadRequestException('El nombre de la respuesta es obligatorio');
     }
 
+    const valor = this.normalizeString(dto.valor ?? dto.value);
+    if (!valor) {
+      throw new BadRequestException('El valor de la respuesta es obligatorio');
+    }
+
     return {
       id_pregunta: questionId,
       nombre,
-      valor: this.normalizeString(dto.valor ?? dto.value),
+      valor,
       color: this.normalizeString(dto.color),
       user_created: this.normalizeString(dto.user_created ?? dto.userCreated),
     };
@@ -217,7 +222,11 @@ export class QuestionsService {
     }
 
     if (Object.prototype.hasOwnProperty.call(dto, 'valor') || Object.prototype.hasOwnProperty.call(dto, 'value')) {
-      data.valor = this.normalizeString(dto.valor ?? dto.value);
+      const valor = this.normalizeString(dto.valor ?? dto.value);
+      if (!valor) {
+        throw new BadRequestException('El valor de la respuesta es obligatorio');
+      }
+      data.valor = valor;
     }
 
     if (Object.prototype.hasOwnProperty.call(dto, 'color')) {

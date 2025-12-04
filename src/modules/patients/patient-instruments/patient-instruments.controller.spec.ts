@@ -8,9 +8,10 @@ describe('PatientInstrumentsController', () => {
   beforeEach(async () => {
     const serviceMock = {
       findAll: jest.fn(),
-      findAllInstrumentGraphics: jest.fn(),
       findByPatient: jest.fn(),
       findByUser: jest.fn(),
+      findResponsesByPatient: jest.fn(),
+      findResponsesByUser: jest.fn(),
       findOne: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),

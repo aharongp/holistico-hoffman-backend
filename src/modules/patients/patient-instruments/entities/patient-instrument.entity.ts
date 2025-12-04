@@ -17,15 +17,25 @@ export interface PatientInstrumentAssignment {
 	topics: string[];
 }
 
-export interface InstrumentGraphic {
+export interface PatientInstrumentResponse {
 	id: number;
+	patientId: number | null;
+	patientInstrumentId: number | null;
 	instrumentId: number | null;
-	title: string | null;
-	sentence: string | null;
-	chartType: string | null;
-	width: number | null;
-	height: number | null;
+	instrumentTypeId: number | null;
+	topicId: number | null;
+	criterionId: number | null;
+	questionId: number | null;
+	theme: string | null;
+	topic: string | null;
+	question: string | null;
+	answer: string | null;
+	competence: string | null;
+	type: string | null;
+	order: number | null;
+	saved: boolean;
+	evaluated: boolean;
+	answerDate: string | null;
 	createdAt: string | null;
 	updatedAt: string | null;
-	criterionId: number | null;
 }
