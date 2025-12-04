@@ -2,6 +2,7 @@ import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from 
 import { PatientInstrumentsService } from './patient-instruments.service';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
+import { SubmitPatientInstrumentResponseDto } from './dto/submit-patient-instrument-response.dto';
 
 @Controller('patient-instruments')
 export class PatientInstrumentsController {
@@ -35,6 +36,14 @@ export class PatientInstrumentsController {
   @Get('responses/user/:userId')
   findResponsesByUser(@Param('userId', ParseIntPipe) userId: number) {
     return this.patientInstrumentsService.findResponsesByUser(userId);
+  }
+
+  @Post(':id/responses')
+  submitResponses(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() submitPatientInstrumentResponseDto: SubmitPatientInstrumentResponseDto,
+  ) {
+    return this.patientInstrumentsService.submitResponses(id, submitPatientInstrumentResponseDto);
   }
 
   @Get(':id')
