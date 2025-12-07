@@ -38,6 +38,16 @@ export class PatientInstrumentsController {
     return this.patientInstrumentsService.findResponsesByUser(userId);
   }
 
+  @Get('results/patient/:patientId')
+  findAggregatedResultsByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.patientInstrumentsService.findAggregatedResultsByPatient(patientId);
+  }
+
+  @Get('results/user/:userId')
+  findAggregatedResultsByUser(@Param('userId', ParseIntPipe) userId: number) {
+    return this.patientInstrumentsService.findAggregatedResultsByUser(userId);
+  }
+
   @Post(':id/responses')
   submitResponses(
     @Param('id', ParseIntPipe) id: number,
