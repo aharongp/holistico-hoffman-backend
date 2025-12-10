@@ -411,7 +411,7 @@ export const diagnosticoSalud = (
   textoDiagnostico: string | null,
   valor: MaybeNumber,
 ): HealthDiagnosticResult => {
-  const total = toNumber(valor);
+  const total = Math.trunc(toNumber(valor));
   const id = idDiagnostico ?? null;
   const diagnostic = textoDiagnostico ?? null;
 

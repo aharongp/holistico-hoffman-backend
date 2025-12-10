@@ -8,7 +8,10 @@ import {
   DailyReviewResult,
   HealthDiagnosticResult,
   PatientAggregatedResults,
+  RegiflexEntry,
+  RegiflexResult,
   TestResult,
+  WheelResult,
 } from './entities/patient-instrument-results.entity';
 import { Prisma, paciente_instrumento, paciente_instrumento_respuesta } from '@prisma/client';
 import { SubmitInstrumentAnswerDto, SubmitPatientInstrumentResponseDto } from './dto/submit-patient-instrument-response.dto';
@@ -110,6 +113,7 @@ export class PatientInstrumentsService {
       select: {
         id: true,
         fecha_nacimiento: true,
+        interno: true,
       },
     });
 
@@ -118,6 +122,12 @@ export class PatientInstrumentsService {
     }
 
     const patientAge = this.calculateAge(patient.fecha_nacimiento ?? null);
+    const dailyInstrumentTopicId = patient.interno === 1 ? 64 : 63;
+    const dailyInstrument = await this.prisma.instrumento.findFirst({
+      where: { id_tema: dailyInstrumentTopicId },
+      select: { id: true },
+    });
+    const dailyInstrumentId = dailyInstrument?.id ?? null;
 
     const strengthsRaw = await this.prisma.$queryRaw<Array<{ tema: string | null; id_tema: number | null; suma: number | null; cantidad: number | null }>>`
       SELECT
@@ -126,7 +136,7 @@ export class PatientInstrumentsService {
         SUM(CAST(respuesta AS DOUBLE PRECISION)) AS suma,
         COUNT(*) AS cantidad
       FROM paciente_instrumento_respuesta
-      WHERE id_paciente = ${patientId} AND id_criterio = 3
+      WHERE id_paciente = ${patientId} AND id_criterio = 3 AND evaluado = 0
       GROUP BY tema, id_tema
       ORDER BY tema
     `;
@@ -161,11 +171,12 @@ export class PatientInstrumentsService {
       SELECT
         t.nombre AS topico,
         t.id AS id,
-        SUM(CAST(p.respuesta AS DOUBLE PRECISION)) AS suma
+        SUM(CAST(p.respuesta AS INTEGER)) AS suma
       FROM paciente_instrumento_respuesta p
       INNER JOIN pregunta q ON p.id_pregunta = q.id
       INNER JOIN topico t ON q.id_topico = t.id
       WHERE p.id_paciente = ${patientId} AND p.tipo_instrumento = 'diagnostico-salud'
+        AND p.evaluado = 0
       GROUP BY t.nombre, t.id
       ORDER BY t.nombre
     `;
@@ -179,14 +190,18 @@ export class PatientInstrumentsService {
       } satisfies HealthDiagnosticResult;
     });
 
-    const stressSum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-estres' });
-    const healthSum = await this.sumNumericResponses({
-      id_paciente: patientId,
-      tipo_instrumento: 'test-salud',
-      id_tema: 55,
-    });
-    const biologicalAgeSum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-biologica' });
-    const codependencySum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-codependencia' });
+    const stressSum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-estres', evaluado: 0 });
+    const healthSum = await this.sumNumericResponses(
+      {
+        id_paciente: patientId,
+        tipo_instrumento: 'test-salud',
+        id_tema: 55,
+        evaluado: 0,
+      },
+      { min: 0, max: 100 },
+    );
+    const biologicalAgeSum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-biologica', evaluado: 0 });
+    const codependencySum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-codependencia', evaluado: 0 });
 
     const tests: Record<string, TestResult | null> = {
       stress: stressSum !== null ? resultadoTest({ edad: patientAge, test: 'estres', valor: stressSum }) : null,
@@ -198,20 +213,116 @@ export class PatientInstrumentsService {
       codependency: codependencySum !== null ? buildCodependencyResult(codependencySum) : null,
     };
 
-    const dailyRaw = await this.prisma.$queryRaw<
-      Array<{ id_topico: number | null; topico: string | null; promedio: number | null }>
+    const wheelOfLifeRaw = await this.prisma.$queryRaw<
+      Array<{ topic: string | null; promedio: number | null }>
     >`
       SELECT
-        t.id AS id_topico,
-        t.nombre AS topico,
+        t.nombre AS topic,
         AVG(CAST(p.respuesta AS DOUBLE PRECISION)) AS promedio
       FROM paciente_instrumento_respuesta p
       INNER JOIN pregunta q ON p.id_pregunta = q.id
       INNER JOIN topico t ON q.id_topico = t.id
-      WHERE p.id_paciente = ${patientId} AND p.tipo_instrumento IN ('revista-diaria-interno', 'revista-diaria-externo')
-      GROUP BY t.id, t.nombre
+      WHERE p.id_paciente = ${patientId}
+        AND p.tipo_instrumento = 'rueda-vida'
+        AND p.evaluado = 0
+      GROUP BY t.nombre
       ORDER BY t.nombre
     `;
+
+    const wheelOfLife: WheelResult[] = wheelOfLifeRaw.map((row) => {
+      const average = this.toNumeric(row.promedio);
+      return {
+        topic: row.topic ?? null,
+        average: Number(average.toFixed(2)),
+      } satisfies WheelResult;
+    });
+
+    const wheelOfHealthRaw = await this.prisma.$queryRaw<
+      Array<{ topic: string | null; promedio: number | null }>
+    >`
+      SELECT
+        t.nombre AS topic,
+        AVG(CAST(p.respuesta AS DOUBLE PRECISION)) AS promedio
+      FROM paciente_instrumento_respuesta p
+      INNER JOIN pregunta q ON p.id_pregunta = q.id
+      INNER JOIN topico t ON q.id_topico = t.id
+      WHERE p.id_paciente = ${patientId}
+        AND p.tipo_instrumento = 'rueda-salud'
+        AND p.evaluado = 0
+      GROUP BY t.nombre
+      ORDER BY t.nombre
+    `;
+
+    const wheelOfHealth: WheelResult[] = wheelOfHealthRaw.map((row) => {
+      const average = this.toNumeric(row.promedio);
+      return {
+        topic: row.topic ?? null,
+        average: Number(average.toFixed(2)),
+      } satisfies WheelResult;
+    });
+
+    const regiflexRaw = await this.prisma.$queryRaw<
+      Array<{ respuesta: string | null; topico: string | null; suma: number | null }>
+    >`
+      SELECT
+        p.respuesta,
+        CASE p.respuesta WHEN '1' THEN 'FLEXIRIGI' ELSE 'RIGIFLEX' END AS topico,
+        SUM(CAST(p.respuesta AS DOUBLE PRECISION)) AS suma
+      FROM paciente_instrumento_respuesta p
+      WHERE p.id_paciente = ${patientId}
+        AND p.tipo_instrumento = 'regiflex-flexirigi'
+        AND p.evaluado = 0
+        AND p.id_tema = 132
+      GROUP BY p.respuesta
+      ORDER BY p.respuesta
+    `;
+
+    const regiflexEntries = regiflexRaw.reduce<RegiflexEntry[]>((acc, row) => {
+      if (!row.topico) {
+        return acc;
+      }
+
+      const sum = this.toNumeric(row.suma);
+      acc.push({
+        topic: row.topico,
+        sum: Number(sum.toFixed(2)),
+      });
+      return acc;
+    }, []);
+
+    const regiflexPredominant = regiflexEntries.reduce<RegiflexEntry | null>((carry, current) => {
+      if (!carry || current.sum > carry.sum) {
+        return current;
+      }
+      return carry;
+    }, null);
+
+    const regiflex: RegiflexResult | null = regiflexEntries.length
+      ? {
+          entries: regiflexEntries,
+          predominant: regiflexPredominant?.topic ?? null,
+        }
+      : null;
+
+    const dailyRaw = dailyInstrumentId
+      ? await this.prisma.$queryRaw<
+          Array<{ id_topico: number | null; topico: string | null; promedio: number | null }>
+        >`
+          SELECT
+            t.id AS id_topico,
+            t.nombre AS topico,
+            AVG(CAST(p.respuesta AS DOUBLE PRECISION)) AS promedio
+          FROM paciente_instrumento_respuesta p
+          INNER JOIN pregunta q ON p.id_pregunta = q.id
+          INNER JOIN topico t ON q.id_topico = t.id
+          WHERE p.id_paciente = ${patientId}
+            AND p.tipo_instrumento IN ('revista-diaria-interno', 'revista-diaria-externo')
+            AND p.id_instrumento = ${dailyInstrumentId}
+            AND p.evaluado = 0
+          GROUP BY t.id, t.nombre
+          ORDER BY t.nombre
+        `
+      : [];
 
     const dailyReview: DailyReviewResult[] = dailyRaw.map((row) => {
       const base = revistaDiaria(row.promedio ?? 0, row.id_topico ?? null);
@@ -233,6 +344,11 @@ export class PatientInstrumentsService {
         tests,
       },
       dailyReview,
+      wellness: {
+        wheelOfLife,
+        wheelOfHealth,
+        regiflex,
+      },
     } satisfies PatientAggregatedResults;
   }
 
@@ -556,6 +672,7 @@ export class PatientInstrumentsService {
 
   private async sumNumericResponses(
     where: Prisma.paciente_instrumento_respuestaWhereInput,
+    options?: { min?: number; max?: number },
   ): Promise<number | null> {
     const rows = await this.prisma.paciente_instrumento_respuesta.findMany({
       where,
@@ -568,13 +685,25 @@ export class PatientInstrumentsService {
 
     let total = 0;
     let hasNumericValue = false;
+    const min = options?.min;
+    const max = options?.max;
 
     rows.forEach((row) => {
       const numeric = this.parseNumeric(row.respuesta);
-      if (numeric !== null) {
-        total += numeric;
-        hasNumericValue = true;
+      if (numeric === null) {
+        return;
       }
+
+      if (min !== undefined && numeric < min) {
+        return;
+      }
+
+      if (max !== undefined && numeric > max) {
+        return;
+      }
+
+      total += numeric;
+      hasNumericValue = true;
     });
 
     if (!hasNumericValue || !Number.isFinite(total)) {
