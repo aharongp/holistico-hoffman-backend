@@ -26,6 +26,9 @@ export class CreatePatientDto {
 	/** Programa asociado. */
 	id_programa?: number | string | null;
 
+	/** Identificador de la cinta asignada. */
+	id_cinta?: number | string | null;
+
 	/** Nombre de contacto alterno. */
 	contacto?: string | null;
 

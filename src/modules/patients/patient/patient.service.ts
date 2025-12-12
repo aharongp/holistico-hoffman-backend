@@ -19,6 +19,7 @@ export type PublicPatient = {
   direccion?: string | null;
   activo?: number | null;
   id_programa?: number | null;
+  id_cinta?: number | null;
   created_at?: Date | null;
   updated_at?: Date | null;
   contacto?: string | null;
@@ -53,6 +54,7 @@ export class PatientService {
     direccion: true,
     activo: true,
     id_programa: true,
+    id_cinta: true,
     created_at: true,
     updated_at: true,
     contacto: true,
@@ -97,6 +99,14 @@ export class PatientService {
     }
 
     return null;
+  }
+
+  private hasRibbonIdKey(dto: any): boolean {
+    if (!dto || typeof dto !== 'object') {
+      return false;
+    }
+
+    return ['id_cinta', 'ribbonId', 'idCinta'].some(key => Object.prototype.hasOwnProperty.call(dto, key));
   }
 
   private normalizeDate(value: unknown): Date | null {
@@ -145,6 +155,11 @@ export class PatientService {
     const birthDate = this.normalizeDate(createPatientDto.fecha_nacimiento);
     const activeFlag = this.normalizeNumber(createPatientDto.activo);
     const userRole = this.normalizeString(createPatientDto.user_role ?? (createPatientDto as any).rol ?? (createPatientDto as any).role) ?? 'patient';
+    const ribbonId = this.normalizeNumber(
+      (createPatientDto as any).id_cinta
+        ?? (createPatientDto as any).ribbonId
+        ?? (createPatientDto as any).idCinta,
+    );
 
     return {
       firstName,
@@ -161,6 +176,7 @@ export class PatientService {
       birthDate,
       activeFlag,
       userRole,
+      ribbonId,
     };
   }
 
@@ -186,6 +202,7 @@ export class PatientService {
         direccion: null,
         activo: null,
         id_programa: null,
+        id_cinta: null,
         created_at: null,
         updated_at: null,
         contacto: null,
@@ -207,6 +224,7 @@ export class PatientService {
       direccion: record.direccion ?? null,
       activo: record.activo ?? null,
       id_programa: record.id_programa ?? null,
+      id_cinta: record.id_cinta ?? null,
       created_at: record.created_at ?? null,
       updated_at: record.updated_at ?? null,
       contacto: record.contacto ?? null,
@@ -231,9 +249,11 @@ export class PatientService {
       birthDate,
       activeFlag,
       userRole,
+      ribbonId,
     } = this.buildPatientPayload(createPatientDto);
 
     const normalizedEmail = contactEmail ? contactEmail.toLowerCase() : null;
+    const ribbonIdProvided = this.hasRibbonIdKey(createPatientDto);
 
     const patient = await this.prisma.$transaction(async prisma => {
       let resolvedUserId = explicitUserId;
@@ -279,6 +299,7 @@ export class PatientService {
           contacto_correo: normalizedEmail ?? null,
           contacto_telefono: contactPhone ?? telefono ?? null,
           id_usuario: resolvedUserId ?? null,
+          id_cinta: ribbonIdProvided ? (typeof ribbonId === 'number' ? ribbonId : null) : null,
         },
         select: this.patientSelect,
       });
@@ -320,9 +341,11 @@ export class PatientService {
       explicitUserId,
       birthDate,
       activeFlag,
+      ribbonId,
     } = this.buildPatientPayload(updatePatientDto);
 
     const normalizedEmail = contactEmail ? contactEmail.toLowerCase() : contactEmail;
+    const ribbonIdProvided = this.hasRibbonIdKey(updatePatientDto);
 
     const hasExplicitUserId = Object.prototype.hasOwnProperty.call(updatePatientDto as any, 'id_usuario')
       || Object.prototype.hasOwnProperty.call(updatePatientDto as any, 'userId');
@@ -343,6 +366,7 @@ export class PatientService {
         contacto_correo: normalizedEmail ?? undefined,
         contacto_telefono: (contactPhone ?? telefono) ?? undefined,
         id_usuario: hasExplicitUserId ? (typeof explicitUserId === 'number' ? explicitUserId : null) : undefined,
+        id_cinta: ribbonIdProvided ? (typeof ribbonId === 'number' ? ribbonId : null) : undefined,
       },
       select: this.patientSelect,
     });
@@ -370,6 +394,7 @@ export class PatientService {
         direccion: true,
         activo: true,
         id_programa: true,
+        id_cinta: true,
         created_at: true,
         updated_at: true,
       },
@@ -387,6 +412,7 @@ export class PatientService {
       direccion: p.direccion ?? null,
       activo: p.activo ?? null,
       id_programa: p.id_programa ?? null,
+      id_cinta: p.id_cinta ?? null,
       created_at: p.created_at ?? null,
       updated_at: p.updated_at ?? null,
     }));
