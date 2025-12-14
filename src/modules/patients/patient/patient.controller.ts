@@ -3,6 +3,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { PatientService } from './patient.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { UpdatePatientProgramDto } from './dto/update-patient-program.dto';
 import type { UpdateHistoryDto } from '../history/dto/update-history.dto';
 import type { Response } from 'express';
 import { memoryStorage } from 'multer';
@@ -132,6 +133,18 @@ export class PatientController {
   @Patch(':id')
   update(@Param('id') id: string, @Body() updatePatientDto: UpdatePatientDto) {
     return this.patientService.update(+id, updatePatientDto);
+  }
+
+  @Patch(':id/program')
+  assignProgram(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() payload: UpdatePatientProgramDto,
+  ) {
+    const programPayload = Object.prototype.hasOwnProperty.call(payload, 'programId')
+      ? payload.programId
+      : payload.id_programa;
+
+    return this.patientService.assignProgram(id, programPayload ?? null);
   }
 
   @Delete(':id')

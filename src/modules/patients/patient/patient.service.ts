@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -371,6 +371,43 @@ export class PatientService {
       select: this.patientSelect,
     });
     if (!updated) return null;
+    return this.mapPatient(updated);
+  }
+
+  async assignProgram(patientId: number, rawProgramId?: number | string | null): Promise<PublicPatient> {
+    const patientExists = await this.prisma.paciente.findUnique({ where: { id: patientId } });
+    if (!patientExists) {
+      throw new NotFoundException('El paciente especificado no existe.');
+    }
+
+    if (typeof rawProgramId === 'undefined') {
+      throw new BadRequestException('Debes proporcionar un identificador de programa o null para desasignar.');
+    }
+
+    let normalizedProgramId: number | null = null;
+
+    if (rawProgramId !== null) {
+      const candidate = this.normalizeNumber(rawProgramId);
+      if (candidate === null) {
+        throw new BadRequestException('El identificador del programa es inválido.');
+      }
+
+      const programExists = await this.prisma.programa.findUnique({ where: { id: candidate }, select: { id: true } });
+      if (!programExists) {
+        throw new NotFoundException('El programa especificado no existe.');
+      }
+
+      normalizedProgramId = candidate;
+    }
+
+    const updated = await this.prisma.paciente.update({
+      where: { id: patientId },
+      data: {
+        id_programa: normalizedProgramId,
+      },
+      select: this.patientSelect,
+    });
+
     return this.mapPatient(updated);
   }
 
