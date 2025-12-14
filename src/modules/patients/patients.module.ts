@@ -8,8 +8,9 @@ import { OcularModule } from './exams/ocular/ocular.module';
 import { PatientInstrumentsModule } from './patient-instruments/patient-instruments.module';
 import { RedimensionModule } from './redimension/redimension.module';
 import { RibbonModule } from './ribbon/ribbon.module';
+import { PatientPunctualityModule } from './punctuality/patient-punctuality.module';
 
 @Module({
-  imports: [PatientModule, HistoryModule, ConsultationModule, VitalsModule, DentalModule, OcularModule, PatientInstrumentsModule, RedimensionModule, RibbonModule]
+  imports: [PatientModule, HistoryModule, ConsultationModule, VitalsModule, DentalModule, OcularModule, PatientInstrumentsModule, RedimensionModule, RibbonModule, PatientPunctualityModule]
 })
 export class PatientsModule {}
