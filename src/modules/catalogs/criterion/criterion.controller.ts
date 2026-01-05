@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { CriterionService } from './criterion.service';
 import { CreateCriterionDto } from './dto/create-criterion.dto';
 import { UpdateCriterionDto } from './dto/update-criterion.dto';
@@ -23,7 +32,10 @@ export class CriterionController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateCriterionDto: UpdateCriterionDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateCriterionDto: UpdateCriterionDto,
+  ) {
     return this.criterionService.update(id, updateCriterionDto);
   }
 

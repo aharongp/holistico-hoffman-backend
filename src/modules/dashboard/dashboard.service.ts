@@ -52,7 +52,9 @@ export class DashboardService {
       return [];
     }
 
-    const normalize = (value: string | null | undefined): 'male' | 'female' | 'other' => {
+    const normalize = (
+      value: string | null | undefined,
+    ): 'male' | 'female' | 'other' => {
       const normalized = (value ?? '').toString().trim().toLowerCase();
       if (['male', 'masculino', 'm', 'h', 'hombre'].includes(normalized)) {
         return 'male';
@@ -75,7 +77,7 @@ export class DashboardService {
       other: 0,
     };
 
-    patients.forEach(patient => {
+    patients.forEach((patient) => {
       const key = normalize(patient.genero);
       counts[key] += 1;
     });
@@ -83,12 +85,14 @@ export class DashboardService {
     const total = patients.length;
 
     return (Object.keys(counts) as Array<'male' | 'female' | 'other'>)
-      .map(key => ({
+      .map((key) => ({
         gender: labels[key],
         count: counts[key],
-        percentage: total ? Number(((counts[key] / total) * 100).toFixed(2)) : 0,
+        percentage: total
+          ? Number(((counts[key] / total) * 100).toFixed(2))
+          : 0,
       }))
-      .filter(item => item.count > 0)
+      .filter((item) => item.count > 0)
       .sort((a, b) => b.count - a.count);
   }
 
@@ -101,7 +105,7 @@ export class DashboardService {
     });
 
     const programEntries = await Promise.all(
-      programs.map(async program => {
+      programs.map(async (program) => {
         const patients = await this.patientService.findByProgramId(program.id);
         return {
           programId: program.id,
@@ -111,7 +115,8 @@ export class DashboardService {
       }),
     );
 
-    const withoutProgramPatients = await this.patientService.findByProgramId(null);
+    const withoutProgramPatients =
+      await this.patientService.findByProgramId(null);
     const entries = [...programEntries];
 
     if (withoutProgramPatients.length) {
@@ -126,7 +131,13 @@ export class DashboardService {
   }
 
   async getSummary(): Promise<DashboardSummary> {
-    const [patients, users, instruments, patientGenderDistribution, patientsByProgram] = await Promise.all([
+    const [
+      patients,
+      users,
+      instruments,
+      patientGenderDistribution,
+      patientsByProgram,
+    ] = await Promise.all([
       this.getPatientCount(),
       this.getUserCount(),
       this.getInstrumentCount(),

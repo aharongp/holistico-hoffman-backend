@@ -4,7 +4,7 @@ import { InstrumentsController } from './instruments.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
-  controllers: [InstrumentsController],    
+  controllers: [InstrumentsController],
   imports: [PrismaModule],
   providers: [InstrumentsService],
 })

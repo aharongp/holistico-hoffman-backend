@@ -1,6 +1,20 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { HistoryService } from './history.service';
 import type { UpdateHistoryDto } from './dto/update-history.dto';
+import type {
+  UpsertPatientDentalExamDto,
+  UpsertPatientDentalPresenceDto,
+  UpsertPatientOcularExamDto,
+} from './dto/manage-dental-exams.dto';
 
 @Controller('patients/history')
 export class HistoryController {
@@ -17,7 +31,9 @@ export class HistoryController {
   }
 
   @Get(':patientId/treating-doctor')
-  getTreatingDoctorHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+  getTreatingDoctorHistory(
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ) {
     return this.historyService.getTreatingDoctorHistory(patientId);
   }
 
@@ -42,8 +58,130 @@ export class HistoryController {
   }
 
   @Get(':patientId/clinical-background')
-  getClinicalBackgroundHistory(@Param('patientId', ParseIntPipe) patientId: number) {
+  getClinicalBackgroundHistory(
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ) {
     return this.historyService.getClinicalBackgroundHistory(patientId);
+  }
+
+  @Get(':patientId/dental-exams/presence')
+  listDentalPresenceRecords(
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ) {
+    return this.historyService.listDentalPresenceRecords(patientId);
+  }
+
+  @Post(':patientId/dental-exams/presence')
+  createDentalPresenceRecord(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Body() payload: UpsertPatientDentalPresenceDto,
+  ) {
+    return this.historyService.createDentalPresenceRecord(patientId, payload);
+  }
+
+  @Get(':patientId/dental-exams/presence/:recordId')
+  getDentalPresenceRecord(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+  ) {
+    return this.historyService.getDentalPresenceRecord(patientId, recordId);
+  }
+
+  @Put(':patientId/dental-exams/presence/:recordId')
+  updateDentalPresenceRecord(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+    @Body() payload: UpsertPatientDentalPresenceDto,
+  ) {
+    return this.historyService.updateDentalPresenceRecord(
+      patientId,
+      recordId,
+      payload,
+    );
+  }
+
+  @Delete(':patientId/dental-exams/presence/:recordId')
+  deleteDentalPresenceRecord(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+  ) {
+    return this.historyService.deleteDentalPresenceRecord(patientId, recordId);
+  }
+
+  @Get(':patientId/dental-exams')
+  listDentalExams(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.listDentalExams(patientId);
+  }
+
+  @Post(':patientId/dental-exams')
+  createDentalExam(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Body() payload: UpsertPatientDentalExamDto,
+  ) {
+    return this.historyService.createDentalExam(patientId, payload);
+  }
+
+  @Get(':patientId/dental-exams/:examId')
+  getDentalExam(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('examId', ParseIntPipe) examId: number,
+  ) {
+    return this.historyService.getDentalExam(patientId, examId);
+  }
+
+  @Put(':patientId/dental-exams/:examId')
+  updateDentalExam(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('examId', ParseIntPipe) examId: number,
+    @Body() payload: UpsertPatientDentalExamDto,
+  ) {
+    return this.historyService.updateDentalExam(patientId, examId, payload);
+  }
+
+  @Delete(':patientId/dental-exams/:examId')
+  deleteDentalExam(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('examId', ParseIntPipe) examId: number,
+  ) {
+    return this.historyService.deleteDentalExam(patientId, examId);
+  }
+
+  @Get(':patientId/ocular-exams')
+  listOcularExams(@Param('patientId', ParseIntPipe) patientId: number) {
+    return this.historyService.listOcularExams(patientId);
+  }
+
+  @Post(':patientId/ocular-exams')
+  createOcularExam(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Body() payload: UpsertPatientOcularExamDto,
+  ) {
+    return this.historyService.createOcularExam(patientId, payload);
+  }
+
+  @Get(':patientId/ocular-exams/:examId')
+  getOcularExam(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('examId', ParseIntPipe) examId: number,
+  ) {
+    return this.historyService.getOcularExam(patientId, examId);
+  }
+
+  @Put(':patientId/ocular-exams/:examId')
+  updateOcularExam(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('examId', ParseIntPipe) examId: number,
+    @Body() payload: UpsertPatientOcularExamDto,
+  ) {
+    return this.historyService.updateOcularExam(patientId, examId, payload);
+  }
+
+  @Delete(':patientId/ocular-exams/:examId')
+  deleteOcularExam(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('examId', ParseIntPipe) examId: number,
+  ) {
+    return this.historyService.deleteOcularExam(patientId, examId);
   }
 
   @Get('attachments')

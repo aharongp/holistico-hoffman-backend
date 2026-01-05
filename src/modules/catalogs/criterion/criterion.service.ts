@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateCriterionDto } from './dto/create-criterion.dto';
 import { UpdateCriterionDto } from './dto/update-criterion.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -57,14 +61,16 @@ export class CriterionService {
     return data;
   }
 
-  private mapCriterion<TEntity extends {
-    id: number;
-    nombre: string | null;
-    descripcion: string | null;
-    user_created: string | null;
-    created_at: Date | null;
-    updated_at: Date | null;
-  }>(record: TEntity): PublicCriterion {
+  private mapCriterion<
+    TEntity extends {
+      id: number;
+      nombre: string | null;
+      descripcion: string | null;
+      user_created: string | null;
+      created_at: Date | null;
+      updated_at: Date | null;
+    },
+  >(record: TEntity): PublicCriterion {
     return {
       id: record.id,
       nombre: record.nombre ?? null,
@@ -75,7 +81,9 @@ export class CriterionService {
     };
   }
 
-  async create(createCriterionDto: CreateCriterionDto): Promise<PublicCriterion> {
+  async create(
+    createCriterionDto: CreateCriterionDto,
+  ): Promise<PublicCriterion> {
     const data = this.buildCreateData(createCriterionDto);
 
     const created = await this.prisma.criterio.create({
@@ -131,7 +139,10 @@ export class CriterionService {
     return this.mapCriterion(criterion);
   }
 
-  async update(id: number, updateCriterionDto: UpdateCriterionDto): Promise<PublicCriterion> {
+  async update(
+    id: number,
+    updateCriterionDto: UpdateCriterionDto,
+  ): Promise<PublicCriterion> {
     const data = this.buildUpdateData(updateCriterionDto);
 
     if (Object.keys(data).length === 0) {
@@ -154,7 +165,10 @@ export class CriterionService {
 
       return this.mapCriterion(updated);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Criterion with id ${id} not found`);
       }
       throw error;
@@ -166,7 +180,10 @@ export class CriterionService {
       await this.prisma.criterio.delete({ where: { id } });
       return { deleted: true };
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Criterion with id ${id} not found`);
       }
       throw error;

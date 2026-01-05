@@ -82,18 +82,20 @@ describe('DashboardService', () => {
       { id: 1, nombre: 'Programa A' },
       { id: 2, nombre: 'Programa B' },
     ]);
-    patientServiceMock.findByProgramId.mockImplementation(async (programId: number | null) => {
-      if (programId === 1) {
-        return [{ id: 101 }, { id: 102 }] as any;
-      }
-      if (programId === 2) {
-        return [{ id: 201 }] as any;
-      }
-      if (programId === null) {
-        return [{ id: 301 }] as any;
-      }
-      return [];
-    });
+    patientServiceMock.findByProgramId.mockImplementation(
+      async (programId: number | null) => {
+        if (programId === 1) {
+          return [{ id: 101 }, { id: 102 }] as any;
+        }
+        if (programId === 2) {
+          return [{ id: 201 }] as any;
+        }
+        if (programId === null) {
+          return [{ id: 301 }] as any;
+        }
+        return [];
+      },
+    );
     prismaMock.paciente.findMany.mockResolvedValueOnce([
       { genero: 'Femenino' },
       { genero: 'F' },

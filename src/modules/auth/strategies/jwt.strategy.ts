@@ -32,7 +32,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User not found');
     }
 
-    if (typeof user.active !== 'undefined' && user.active !== null && Number(user.active) === 0) {
+    if (
+      typeof user.active !== 'undefined' &&
+      user.active !== null &&
+      Number(user.active) === 0
+    ) {
       throw new UnauthorizedException('User is inactive');
     }
 

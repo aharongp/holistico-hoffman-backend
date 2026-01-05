@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { RibbonService } from './ribbon.service';
 import { CreateRibbonDto } from './dto/create-ribbon.dto';
 import { UpdateRibbonDto } from './dto/update-ribbon.dto';
@@ -23,7 +32,10 @@ export class RibbonController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateRibbonDto: UpdateRibbonDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateRibbonDto: UpdateRibbonDto,
+  ) {
     return this.ribbonService.update(id, updateRibbonDto);
   }
 

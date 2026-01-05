@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { ProgramsService } from './programs.service';
 import { CreateProgramDto } from './dto/create-program.dto';
 import { UpdateProgramDto } from './dto/update-program.dto';
@@ -34,7 +43,10 @@ export class ProgramsController {
     @Param('id', ParseIntPipe) id: number,
     @Body() createProgramActivityDto: CreateProgramActivityDto,
   ) {
-    return this.programsService.addActivityToProgram(id, createProgramActivityDto);
+    return this.programsService.addActivityToProgram(
+      id,
+      createProgramActivityDto,
+    );
   }
 
   @Patch(':id/activities/:activityId')
@@ -43,7 +55,11 @@ export class ProgramsController {
     @Param('activityId', ParseIntPipe) activityId: number,
     @Body() updateProgramActivityDto: UpdateProgramActivityDto,
   ) {
-    return this.programsService.updateActivityOnProgram(id, activityId, updateProgramActivityDto);
+    return this.programsService.updateActivityOnProgram(
+      id,
+      activityId,
+      updateProgramActivityDto,
+    );
   }
 
   @Delete(':id/activities/:activityId')
@@ -55,7 +71,10 @@ export class ProgramsController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateProgramDto: UpdateProgramDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateProgramDto: UpdateProgramDto,
+  ) {
     return this.programsService.update(id, updateProgramDto);
   }
 

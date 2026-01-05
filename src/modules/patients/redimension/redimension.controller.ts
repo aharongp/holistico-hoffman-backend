@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { RedimensionService } from './redimension.service';
 import { CreateRedimensionDto } from './dto/create-redimension.dto';
 import { UpdateRedimensionDto } from './dto/update-redimension.dto';
@@ -23,7 +31,10 @@ export class RedimensionController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateRedimensionDto: UpdateRedimensionDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateRedimensionDto: UpdateRedimensionDto,
+  ) {
     return this.redimensionService.update(+id, updateRedimensionDto);
   }
 

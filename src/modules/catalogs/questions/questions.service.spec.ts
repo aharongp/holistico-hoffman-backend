@@ -42,7 +42,10 @@ describe('QuestionsService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [QuestionsService, { provide: PrismaService, useValue: prismaMock }],
+      providers: [
+        QuestionsService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
     }).compile();
 
     service = module.get<QuestionsService>(QuestionsService);
@@ -171,7 +174,9 @@ describe('QuestionsService', () => {
   it('should throw NotFoundException when question does not exist', async () => {
     prismaMock.pregunta.findUnique.mockResolvedValue(null);
 
-    await expect(service.findOne(999)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.findOne(999)).rejects.toBeInstanceOf(
+      NotFoundException,
+    );
   });
 
   it('should update a question with normalized values', async () => {
@@ -214,7 +219,9 @@ describe('QuestionsService', () => {
   });
 
   it('should throw BadRequestException when updating with empty name', async () => {
-    await expect(service.update(1, { name: '   ' })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.update(1, { name: '   ' })).rejects.toBeInstanceOf(
+      BadRequestException,
+    );
   });
 
   it('should remove an existing question', async () => {
@@ -222,7 +229,9 @@ describe('QuestionsService', () => {
 
     await expect(service.remove(5)).resolves.toEqual({ deleted: true });
 
-    expect(prismaMock.pregunta.delete).toHaveBeenCalledWith({ where: { id: 5 } });
+    expect(prismaMock.pregunta.delete).toHaveBeenCalledWith({
+      where: { id: 5 },
+    });
   });
 
   it('should throw NotFoundException when removing missing question', async () => {
@@ -230,7 +239,7 @@ describe('QuestionsService', () => {
       new Prisma.PrismaClientKnownRequestError('Missing', {
         code: 'P2025',
         clientVersion: '6.15.0',
-      })
+      }),
     );
 
     await expect(service.remove(42)).rejects.toBeInstanceOf(NotFoundException);
@@ -366,8 +375,12 @@ describe('QuestionsService', () => {
     });
     prismaMock.respuesta.delete.mockResolvedValue({});
 
-    await expect(service.removeAnswer(7, 30)).resolves.toEqual({ deleted: true });
+    await expect(service.removeAnswer(7, 30)).resolves.toEqual({
+      deleted: true,
+    });
 
-    expect(prismaMock.respuesta.delete).toHaveBeenCalledWith({ where: { id: 30 } });
+    expect(prismaMock.respuesta.delete).toHaveBeenCalledWith({
+      where: { id: 30 },
+    });
   });
 });

@@ -19,7 +19,9 @@ export class UsersService {
   constructor(private readonly prisma: PrismaService) {}
 
   private joinNames(firstName: string, lastName: string): string {
-    const parts = [firstName, lastName].map(part => part.trim()).filter(Boolean);
+    const parts = [firstName, lastName]
+      .map((part) => part.trim())
+      .filter(Boolean);
     return parts.join(' ').trim();
   }
 
@@ -44,11 +46,24 @@ export class UsersService {
     };
   }
 
-  private mapUser<TEntity extends { id: number; email: string | null; username: string | null; rol: string | null; created_at: Date | null; updated_at: Date | null; active: number | null }>(
+  private mapUser<
+    TEntity extends {
+      id: number;
+      email: string | null;
+      username: string | null;
+      rol: string | null;
+      created_at: Date | null;
+      updated_at: Date | null;
+      active: number | null;
+    },
+  >(
     record: TEntity,
     fallbackNames?: { firstName?: string | null; lastName?: string | null },
   ): PublicUser {
-    const { firstName, lastName } = this.extractNames(record.username, fallbackNames);
+    const { firstName, lastName } = this.extractNames(
+      record.username,
+      fallbackNames,
+    );
     return {
       id: record.id,
       email: record.email,
@@ -76,7 +91,7 @@ export class UsersService {
       },
     });
 
-    return users.map(u => this.mapUser(u));
+    return users.map((u) => this.mapUser(u));
   }
 
   async findOne(id: number): Promise<PublicUser | null> {
@@ -97,10 +112,16 @@ export class UsersService {
   }
 
   async create(createUserDto: CreateUserDto): Promise<PublicUser> {
-    const rawFirstName = createUserDto.firstName ?? (createUserDto as any).first_name ?? '';
-    const rawLastName = createUserDto.lastName ?? (createUserDto as any).last_name ?? '';
+    const rawFirstName =
+      createUserDto.firstName ?? (createUserDto as any).first_name ?? '';
+    const rawLastName =
+      createUserDto.lastName ?? (createUserDto as any).last_name ?? '';
     const rawEmail = createUserDto.email ?? (createUserDto as any).correo ?? '';
-    const rawRole = createUserDto.role ?? (createUserDto as any).rol ?? (createUserDto as any).role ?? '';
+    const rawRole =
+      createUserDto.role ??
+      (createUserDto as any).rol ??
+      (createUserDto as any).role ??
+      '';
 
     const firstName = rawFirstName.toString().trim();
     const lastName = rawLastName.toString().trim();

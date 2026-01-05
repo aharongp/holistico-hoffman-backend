@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdatePatientPunctualityDto } from './dto/update-patient-punctuality.dto';
@@ -21,7 +25,10 @@ export class PatientPunctualityService {
     }
   }
 
-  private hasAnyKey(input: Record<string, any> | undefined, keys: string[]): boolean {
+  private hasAnyKey(
+    input: Record<string, any> | undefined,
+    keys: string[],
+  ): boolean {
     if (!input || typeof input !== 'object') {
       return false;
     }
@@ -151,12 +158,17 @@ export class PatientPunctualityService {
     };
   }
 
-  async create(createDto: CreatePatientPunctualityDto): Promise<PatientPunctualityRecord> {
-    const rawPatientId = (createDto as any).id_paciente ?? (createDto as any).patientId;
+  async create(
+    createDto: CreatePatientPunctualityDto,
+  ): Promise<PatientPunctualityRecord> {
+    const rawPatientId =
+      (createDto as any).id_paciente ?? (createDto as any).patientId;
     const patientId = this.normalizeNumber(rawPatientId);
 
     if (patientId === undefined || patientId === null) {
-      throw new BadRequestException('Se requiere el identificador del paciente.');
+      throw new BadRequestException(
+        'Se requiere el identificador del paciente.',
+      );
     }
 
     await this.ensurePatientExists(Number(patientId));
@@ -166,7 +178,9 @@ export class PatientPunctualityService {
     };
 
     if (this.hasAnyKey(createDto as any, ['fecha', 'date'])) {
-      const normalizedDate = this.normalizeDateInput((createDto as any).fecha ?? (createDto as any).date);
+      const normalizedDate = this.normalizeDateInput(
+        (createDto as any).fecha ?? (createDto as any).date,
+      );
       if (normalizedDate === undefined) {
         throw new BadRequestException('La fecha proporcionada no es válida.');
       }
@@ -174,15 +188,21 @@ export class PatientPunctualityService {
     }
 
     if (this.hasAnyKey(createDto as any, ['actividad', 'activity'])) {
-      const activity = this.normalizeString((createDto as any).actividad ?? (createDto as any).activity);
+      const activity = this.normalizeString(
+        (createDto as any).actividad ?? (createDto as any).activity,
+      );
       if (activity === undefined) {
-        throw new BadRequestException('La actividad proporcionada no es válida.');
+        throw new BadRequestException(
+          'La actividad proporcionada no es válida.',
+        );
       }
       data.actividad = activity;
     }
 
     if (this.hasAnyKey(createDto as any, ['puntualidad', 'punctuality'])) {
-      const punctuality = this.normalizeNumber((createDto as any).puntualidad ?? (createDto as any).punctuality);
+      const punctuality = this.normalizeNumber(
+        (createDto as any).puntualidad ?? (createDto as any).punctuality,
+      );
       if (punctuality === undefined) {
         throw new BadRequestException('El valor de puntualidad no es válido.');
       }
@@ -190,7 +210,9 @@ export class PatientPunctualityService {
     }
 
     if (this.hasAnyKey(createDto as any, ['efectividad', 'effectiveness'])) {
-      const effectiveness = this.normalizeNumber((createDto as any).efectividad ?? (createDto as any).effectiveness);
+      const effectiveness = this.normalizeNumber(
+        (createDto as any).efectividad ?? (createDto as any).effectiveness,
+      );
       if (effectiveness === undefined) {
         throw new BadRequestException('El valor de efectividad no es válido.');
       }
@@ -198,23 +220,34 @@ export class PatientPunctualityService {
     }
 
     if (this.hasAnyKey(createDto as any, ['cumplimiento', 'compliance'])) {
-      const compliance = this.normalizeNumber((createDto as any).cumplimiento ?? (createDto as any).compliance);
+      const compliance = this.normalizeNumber(
+        (createDto as any).cumplimiento ?? (createDto as any).compliance,
+      );
       if (compliance === undefined) {
         throw new BadRequestException('El valor de cumplimiento no es válido.');
       }
       data.cumplimiento = compliance;
     }
 
-    if (this.hasAnyKey(createDto as any, ['efectividad_rol', 'roleEffectiveness'])) {
-      const roleEffectiveness = this.normalizeNumber((createDto as any).efectividad_rol ?? (createDto as any).roleEffectiveness);
+    if (
+      this.hasAnyKey(createDto as any, ['efectividad_rol', 'roleEffectiveness'])
+    ) {
+      const roleEffectiveness = this.normalizeNumber(
+        (createDto as any).efectividad_rol ??
+          (createDto as any).roleEffectiveness,
+      );
       if (roleEffectiveness === undefined) {
-        throw new BadRequestException('El valor de efectividad por rol no es válido.');
+        throw new BadRequestException(
+          'El valor de efectividad por rol no es válido.',
+        );
       }
       data.efectividad_rol = roleEffectiveness;
     }
 
     if (this.hasAnyKey(createDto as any, ['evaluado', 'evaluated'])) {
-      const evaluated = this.normalizeBooleanInt((createDto as any).evaluado ?? (createDto as any).evaluated);
+      const evaluated = this.normalizeBooleanInt(
+        (createDto as any).evaluado ?? (createDto as any).evaluated,
+      );
       if (evaluated === undefined) {
         throw new BadRequestException('El valor de evaluado no es válido.');
       }
@@ -236,7 +269,9 @@ export class PatientPunctualityService {
     if (this.hasAnyKey(createDto as any, ['updated_at'])) {
       const updatedAt = this.normalizeDateInput((createDto as any).updated_at);
       if (updatedAt === undefined) {
-        throw new BadRequestException('La fecha de actualización no es válida.');
+        throw new BadRequestException(
+          'La fecha de actualización no es válida.',
+        );
       }
       data.updated_at = updatedAt;
     } else {
@@ -249,11 +284,7 @@ export class PatientPunctualityService {
 
   async findAll(): Promise<PatientPunctualityRecord[]> {
     const records = await this.prisma.paciente_puntualidad.findMany({
-      orderBy: [
-        { fecha: 'desc' },
-        { created_at: 'desc' },
-        { id: 'desc' },
-      ],
+      orderBy: [{ fecha: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
     });
 
     return records.map((record) => this.mapPrismaRecord(record));
@@ -264,18 +295,16 @@ export class PatientPunctualityService {
 
     const records = await this.prisma.paciente_puntualidad.findMany({
       where: { id_paciente: patientId },
-      orderBy: [
-        { fecha: 'desc' },
-        { created_at: 'desc' },
-        { id: 'desc' },
-      ],
+      orderBy: [{ fecha: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
     });
 
     return records.map((record) => this.mapPrismaRecord(record));
   }
 
   async findOne(id: number): Promise<PatientPunctualityRecord | null> {
-    const record = await this.prisma.paciente_puntualidad.findUnique({ where: { id } });
+    const record = await this.prisma.paciente_puntualidad.findUnique({
+      where: { id },
+    });
     if (!record) {
       return null;
     }
@@ -283,8 +312,13 @@ export class PatientPunctualityService {
     return this.mapPrismaRecord(record);
   }
 
-  async update(id: number, updateDto: UpdatePatientPunctualityDto): Promise<PatientPunctualityRecord> {
-    const existing = await this.prisma.paciente_puntualidad.findUnique({ where: { id } });
+  async update(
+    id: number,
+    updateDto: UpdatePatientPunctualityDto,
+  ): Promise<PatientPunctualityRecord> {
+    const existing = await this.prisma.paciente_puntualidad.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException('Registro de puntualidad no encontrado');
     }
@@ -292,9 +326,13 @@ export class PatientPunctualityService {
     const data: Prisma.paciente_puntualidadUpdateInput = {};
 
     if (this.hasAnyKey(updateDto, ['id_paciente', 'patientId'])) {
-      const patientId = this.normalizeNumber((updateDto as any).id_paciente ?? (updateDto as any).patientId);
+      const patientId = this.normalizeNumber(
+        (updateDto as any).id_paciente ?? (updateDto as any).patientId,
+      );
       if (patientId === undefined) {
-        throw new BadRequestException('El identificador del paciente no es válido.');
+        throw new BadRequestException(
+          'El identificador del paciente no es válido.',
+        );
       }
 
       if (patientId !== null) {
@@ -305,7 +343,9 @@ export class PatientPunctualityService {
     }
 
     if (this.hasAnyKey(updateDto, ['fecha', 'date'])) {
-      const normalizedDate = this.normalizeDateInput((updateDto as any).fecha ?? (updateDto as any).date);
+      const normalizedDate = this.normalizeDateInput(
+        (updateDto as any).fecha ?? (updateDto as any).date,
+      );
       if (normalizedDate === undefined) {
         throw new BadRequestException('La fecha proporcionada no es válida.');
       }
@@ -313,15 +353,21 @@ export class PatientPunctualityService {
     }
 
     if (this.hasAnyKey(updateDto, ['actividad', 'activity'])) {
-      const activity = this.normalizeString((updateDto as any).actividad ?? (updateDto as any).activity);
+      const activity = this.normalizeString(
+        (updateDto as any).actividad ?? (updateDto as any).activity,
+      );
       if (activity === undefined) {
-        throw new BadRequestException('La actividad proporcionada no es válida.');
+        throw new BadRequestException(
+          'La actividad proporcionada no es válida.',
+        );
       }
       data.actividad = activity;
     }
 
     if (this.hasAnyKey(updateDto, ['puntualidad', 'punctuality'])) {
-      const punctuality = this.normalizeNumber((updateDto as any).puntualidad ?? (updateDto as any).punctuality);
+      const punctuality = this.normalizeNumber(
+        (updateDto as any).puntualidad ?? (updateDto as any).punctuality,
+      );
       if (punctuality === undefined) {
         throw new BadRequestException('El valor de puntualidad no es válido.');
       }
@@ -329,7 +375,9 @@ export class PatientPunctualityService {
     }
 
     if (this.hasAnyKey(updateDto, ['efectividad', 'effectiveness'])) {
-      const effectiveness = this.normalizeNumber((updateDto as any).efectividad ?? (updateDto as any).effectiveness);
+      const effectiveness = this.normalizeNumber(
+        (updateDto as any).efectividad ?? (updateDto as any).effectiveness,
+      );
       if (effectiveness === undefined) {
         throw new BadRequestException('El valor de efectividad no es válido.');
       }
@@ -337,7 +385,9 @@ export class PatientPunctualityService {
     }
 
     if (this.hasAnyKey(updateDto, ['cumplimiento', 'compliance'])) {
-      const compliance = this.normalizeNumber((updateDto as any).cumplimiento ?? (updateDto as any).compliance);
+      const compliance = this.normalizeNumber(
+        (updateDto as any).cumplimiento ?? (updateDto as any).compliance,
+      );
       if (compliance === undefined) {
         throw new BadRequestException('El valor de cumplimiento no es válido.');
       }
@@ -345,15 +395,22 @@ export class PatientPunctualityService {
     }
 
     if (this.hasAnyKey(updateDto, ['efectividad_rol', 'roleEffectiveness'])) {
-      const roleEffectiveness = this.normalizeNumber((updateDto as any).efectividad_rol ?? (updateDto as any).roleEffectiveness);
+      const roleEffectiveness = this.normalizeNumber(
+        (updateDto as any).efectividad_rol ??
+          (updateDto as any).roleEffectiveness,
+      );
       if (roleEffectiveness === undefined) {
-        throw new BadRequestException('El valor de efectividad por rol no es válido.');
+        throw new BadRequestException(
+          'El valor de efectividad por rol no es válido.',
+        );
       }
       data.efectividad_rol = roleEffectiveness;
     }
 
     if (this.hasAnyKey(updateDto, ['evaluado', 'evaluated'])) {
-      const evaluated = this.normalizeBooleanInt((updateDto as any).evaluado ?? (updateDto as any).evaluated);
+      const evaluated = this.normalizeBooleanInt(
+        (updateDto as any).evaluado ?? (updateDto as any).evaluated,
+      );
       if (evaluated === undefined) {
         throw new BadRequestException('El valor de evaluado no es válido.');
       }
@@ -371,7 +428,9 @@ export class PatientPunctualityService {
     if (this.hasAnyKey(updateDto, ['updated_at'])) {
       const updatedAt = this.normalizeDateInput((updateDto as any).updated_at);
       if (updatedAt === undefined) {
-        throw new BadRequestException('La fecha de actualización no es válida.');
+        throw new BadRequestException(
+          'La fecha de actualización no es válida.',
+        );
       }
       data.updated_at = updatedAt;
     } else {
@@ -391,7 +450,9 @@ export class PatientPunctualityService {
   }
 
   async remove(id: number): Promise<{ deleted: boolean }> {
-    const existing = await this.prisma.paciente_puntualidad.findUnique({ where: { id } });
+    const existing = await this.prisma.paciente_puntualidad.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException('Registro de puntualidad no encontrado');
     }

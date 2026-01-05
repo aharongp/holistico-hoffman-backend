@@ -1,11 +1,23 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, ParseIntPipe, Patch, Post } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  NotFoundException,
+  Param,
+  ParseIntPipe,
+  Patch,
+  Post,
+} from '@nestjs/common';
 import { PatientPunctualityService } from './patient-punctuality.service';
 import { UpdatePatientPunctualityDto } from './dto/update-patient-punctuality.dto';
 import { CreatePatientPunctualityDto } from './dto/create-patient-punctuality.dto';
 
 @Controller('patient-punctuality')
 export class PatientPunctualityController {
-  constructor(private readonly patientPunctualityService: PatientPunctualityService) {}
+  constructor(
+    private readonly patientPunctualityService: PatientPunctualityService,
+  ) {}
 
   @Post()
   create(@Body() createPatientPunctualityDto: CreatePatientPunctualityDto) {
@@ -33,8 +45,14 @@ export class PatientPunctualityController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updatePatientPunctualityDto: UpdatePatientPunctualityDto) {
-    return this.patientPunctualityService.update(id, updatePatientPunctualityDto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePatientPunctualityDto: UpdatePatientPunctualityDto,
+  ) {
+    return this.patientPunctualityService.update(
+      id,
+      updatePatientPunctualityDto,
+    );
   }
 
   @Delete(':id')

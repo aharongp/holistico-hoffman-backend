@@ -1,4 +1,20 @@
-import { BadRequestException, Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, NotFoundException, Put, Res, StreamableFile, UploadedFile, UseInterceptors } from '@nestjs/common';
+import {
+  BadRequestException,
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+  NotFoundException,
+  Put,
+  Res,
+  StreamableFile,
+  UploadedFile,
+  UseInterceptors,
+} from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { PatientService } from './patient.service';
 import { CreatePatientDto } from './dto/create-patient.dto';
@@ -38,10 +54,18 @@ export class PatientController {
   @UseInterceptors(PATIENT_ATTACHMENT_UPLOAD_INTERCEPTOR)
   async uploadAttachment(
     @Param('id', ParseIntPipe) id: number,
-    @UploadedFile() file?: { buffer: Buffer; originalname?: string | null; mimetype?: string | null; size?: number | null },
+    @UploadedFile()
+    file?: {
+      buffer: Buffer;
+      originalname?: string | null;
+      mimetype?: string | null;
+      size?: number | null;
+    },
   ) {
     if (!file || !file.buffer || file.buffer.length === 0) {
-      throw new BadRequestException('No se recibió un archivo válido para cargar.');
+      throw new BadRequestException(
+        'No se recibió un archivo válido para cargar.',
+      );
     }
 
     return this.patientService.uploadAttachment(id, {
@@ -56,10 +80,18 @@ export class PatientController {
   @UseInterceptors(PATIENT_ATTACHMENT_UPLOAD_INTERCEPTOR)
   async uploadAttachmentByUserId(
     @Param('userId', ParseIntPipe) userId: number,
-    @UploadedFile() file?: { buffer: Buffer; originalname?: string | null; mimetype?: string | null; size?: number | null },
+    @UploadedFile()
+    file?: {
+      buffer: Buffer;
+      originalname?: string | null;
+      mimetype?: string | null;
+      size?: number | null;
+    },
   ) {
     if (!file || !file.buffer || file.buffer.length === 0) {
-      throw new BadRequestException('No se recibió un archivo válido para cargar.');
+      throw new BadRequestException(
+        'No se recibió un archivo válido para cargar.',
+      );
     }
 
     return this.patientService.uploadAttachmentByUserId(userId, {
@@ -85,17 +117,22 @@ export class PatientController {
   }
 
   @Get('user/:userId/history')
-  async getMedicalHistoryByUserId(@Param('userId', ParseIntPipe) userId: number) {
+  async getMedicalHistoryByUserId(
+    @Param('userId', ParseIntPipe) userId: number,
+  ) {
     const history = await this.patientService.getMedicalHistoryByUserId(userId);
     if (!history) {
-      throw new NotFoundException('Patient medical history not found for the provided user');
+      throw new NotFoundException(
+        'Patient medical history not found for the provided user',
+      );
     }
     return history;
   }
 
   @Get('user/:userId/attachments')
   async getAttachmentsByUserId(@Param('userId', ParseIntPipe) userId: number) {
-    const attachments = await this.patientService.getAttachmentsByUserId(userId);
+    const attachments =
+      await this.patientService.getAttachmentsByUserId(userId);
     return attachments;
   }
 
@@ -140,7 +177,10 @@ export class PatientController {
     @Param('id', ParseIntPipe) id: number,
     @Body() payload: UpdatePatientProgramDto,
   ) {
-    const programPayload = Object.prototype.hasOwnProperty.call(payload, 'programId')
+    const programPayload = Object.prototype.hasOwnProperty.call(
+      payload,
+      'programId',
+    )
       ? payload.programId
       : payload.id_programa;
 

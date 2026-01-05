@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
 import { CreateAnswerDto } from './dto/create-answer.dto';
@@ -43,7 +47,9 @@ const QUESTION_SELECT = {
   habilitada: true,
 } satisfies Prisma.preguntaSelect;
 
-type QuestionRecord = Prisma.preguntaGetPayload<{ select: typeof QUESTION_SELECT }>;
+type QuestionRecord = Prisma.preguntaGetPayload<{
+  select: typeof QUESTION_SELECT;
+}>;
 
 const ANSWER_SELECT = {
   id: true,
@@ -56,7 +62,9 @@ const ANSWER_SELECT = {
   updated_at: true,
 } satisfies Prisma.respuestaSelect;
 
-type AnswerRecord = Prisma.respuestaGetPayload<{ select: typeof ANSWER_SELECT }>;
+type AnswerRecord = Prisma.respuestaGetPayload<{
+  select: typeof ANSWER_SELECT;
+}>;
 
 @Injectable()
 export class QuestionsService {
@@ -92,10 +100,16 @@ export class QuestionsService {
     if (typeof value === 'string') {
       const normalized = value.trim().toLowerCase();
       if (!normalized) return 1;
-      if (['1', 'true', 'habilitada', 'enabled', 'si', 'sí', 'yes'].includes(normalized)) {
+      if (
+        ['1', 'true', 'habilitada', 'enabled', 'si', 'sí', 'yes'].includes(
+          normalized,
+        )
+      ) {
         return 1;
       }
-      if (['0', 'false', 'inhabilitada', 'disabled', 'no'].includes(normalized)) {
+      if (
+        ['0', 'false', 'inhabilitada', 'disabled', 'no'].includes(normalized)
+      ) {
         return 0;
       }
       const numeric = Number(normalized);
@@ -114,11 +128,15 @@ export class QuestionsService {
     }
 
     return {
-      id_instrumento: this.normalizeNumber(dto.id_instrumento ?? dto.instrumentId),
+      id_instrumento: this.normalizeNumber(
+        dto.id_instrumento ?? dto.instrumentId,
+      ),
       id_topico: this.normalizeNumber(dto.id_topico ?? dto.topicId),
       nombre,
       user_created: this.normalizeString(dto.user_created ?? dto.userCreated),
-      tipo_respuesta: this.normalizeString(dto.tipo_respuesta ?? dto.responseType),
+      tipo_respuesta: this.normalizeString(
+        dto.tipo_respuesta ?? dto.responseType,
+      ),
       orden: this.normalizeNumber(dto.orden ?? dto.order),
       habilitada: this.normalizeEnabledFlag(dto.habilitada ?? dto.isEnabled),
     };
@@ -127,36 +145,67 @@ export class QuestionsService {
   private buildUpdateData(dto: UpdateQuestionDto): Prisma.preguntaUpdateInput {
     const data: Prisma.preguntaUpdateInput = {};
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'id_instrumento') || Object.prototype.hasOwnProperty.call(dto, 'instrumentId')) {
-      data.id_instrumento = this.normalizeNumber(dto.id_instrumento ?? dto.instrumentId);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'id_instrumento') ||
+      Object.prototype.hasOwnProperty.call(dto, 'instrumentId')
+    ) {
+      data.id_instrumento = this.normalizeNumber(
+        dto.id_instrumento ?? dto.instrumentId,
+      );
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'id_topico') || Object.prototype.hasOwnProperty.call(dto, 'topicId')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'id_topico') ||
+      Object.prototype.hasOwnProperty.call(dto, 'topicId')
+    ) {
       data.id_topico = this.normalizeNumber(dto.id_topico ?? dto.topicId);
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'nombre') || Object.prototype.hasOwnProperty.call(dto, 'name')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'nombre') ||
+      Object.prototype.hasOwnProperty.call(dto, 'name')
+    ) {
       const nombre = this.normalizeString(dto.nombre ?? dto.name);
       if (!nombre) {
-        throw new BadRequestException('El nombre de la pregunta es obligatorio');
+        throw new BadRequestException(
+          'El nombre de la pregunta es obligatorio',
+        );
       }
       data.nombre = nombre;
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'user_created') || Object.prototype.hasOwnProperty.call(dto, 'userCreated')) {
-      data.user_created = this.normalizeString(dto.user_created ?? dto.userCreated);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'user_created') ||
+      Object.prototype.hasOwnProperty.call(dto, 'userCreated')
+    ) {
+      data.user_created = this.normalizeString(
+        dto.user_created ?? dto.userCreated,
+      );
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'tipo_respuesta') || Object.prototype.hasOwnProperty.call(dto, 'responseType')) {
-      data.tipo_respuesta = this.normalizeString(dto.tipo_respuesta ?? dto.responseType);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'tipo_respuesta') ||
+      Object.prototype.hasOwnProperty.call(dto, 'responseType')
+    ) {
+      data.tipo_respuesta = this.normalizeString(
+        dto.tipo_respuesta ?? dto.responseType,
+      );
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'orden') || Object.prototype.hasOwnProperty.call(dto, 'order')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'orden') ||
+      Object.prototype.hasOwnProperty.call(dto, 'order')
+    ) {
       data.orden = this.normalizeNumber(dto.orden ?? dto.order);
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'habilitada') || Object.prototype.hasOwnProperty.call(dto, 'isEnabled')) {
-      data.habilitada = this.normalizeEnabledFlag(dto.habilitada ?? dto.isEnabled);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'habilitada') ||
+      Object.prototype.hasOwnProperty.call(dto, 'isEnabled')
+    ) {
+      data.habilitada = this.normalizeEnabledFlag(
+        dto.habilitada ?? dto.isEnabled,
+      );
     }
 
     return data;
@@ -190,7 +239,10 @@ export class QuestionsService {
     };
   }
 
-  private buildCreateAnswerData(questionId: number, dto: CreateAnswerDto): Prisma.respuestaCreateInput {
+  private buildCreateAnswerData(
+    questionId: number,
+    dto: CreateAnswerDto,
+  ): Prisma.respuestaCreateInput {
     const nombre = this.normalizeString(dto.nombre ?? dto.name);
     if (!nombre) {
       throw new BadRequestException('El nombre de la respuesta es obligatorio');
@@ -210,21 +262,33 @@ export class QuestionsService {
     };
   }
 
-  private buildUpdateAnswerData(dto: UpdateAnswerDto): Prisma.respuestaUpdateInput {
+  private buildUpdateAnswerData(
+    dto: UpdateAnswerDto,
+  ): Prisma.respuestaUpdateInput {
     const data: Prisma.respuestaUpdateInput = {};
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'nombre') || Object.prototype.hasOwnProperty.call(dto, 'name')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'nombre') ||
+      Object.prototype.hasOwnProperty.call(dto, 'name')
+    ) {
       const nombre = this.normalizeString(dto.nombre ?? dto.name);
       if (!nombre) {
-        throw new BadRequestException('El nombre de la respuesta es obligatorio');
+        throw new BadRequestException(
+          'El nombre de la respuesta es obligatorio',
+        );
       }
       data.nombre = nombre;
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'valor') || Object.prototype.hasOwnProperty.call(dto, 'value')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'valor') ||
+      Object.prototype.hasOwnProperty.call(dto, 'value')
+    ) {
       const valor = this.normalizeString(dto.valor ?? dto.value);
       if (!valor) {
-        throw new BadRequestException('El valor de la respuesta es obligatorio');
+        throw new BadRequestException(
+          'El valor de la respuesta es obligatorio',
+        );
       }
       data.valor = valor;
     }
@@ -233,8 +297,13 @@ export class QuestionsService {
       data.color = this.normalizeString(dto.color);
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'user_created') || Object.prototype.hasOwnProperty.call(dto, 'userCreated')) {
-      data.user_created = this.normalizeString(dto.user_created ?? dto.userCreated);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'user_created') ||
+      Object.prototype.hasOwnProperty.call(dto, 'userCreated')
+    ) {
+      data.user_created = this.normalizeString(
+        dto.user_created ?? dto.userCreated,
+      );
     }
 
     return data;
@@ -251,14 +320,19 @@ export class QuestionsService {
     }
   }
 
-  private async ensureAnswerBelongsToQuestion(questionId: number, answerId: number): Promise<AnswerRecord> {
+  private async ensureAnswerBelongsToQuestion(
+    questionId: number,
+    answerId: number,
+  ): Promise<AnswerRecord> {
     const answer = await this.prisma.respuesta.findUnique({
       where: { id: answerId },
       select: ANSWER_SELECT,
     });
 
     if (!answer || answer.id_pregunta !== questionId) {
-      throw new NotFoundException(`Answer with id ${answerId} not found for question ${questionId}`);
+      throw new NotFoundException(
+        `Answer with id ${answerId} not found for question ${questionId}`,
+      );
     }
 
     return answer;
@@ -295,7 +369,10 @@ export class QuestionsService {
     return this.mapQuestion(question);
   }
 
-  async update(id: number, updateQuestionDto: UpdateQuestionDto): Promise<PublicQuestion> {
+  async update(
+    id: number,
+    updateQuestionDto: UpdateQuestionDto,
+  ): Promise<PublicQuestion> {
     const data = this.buildUpdateData(updateQuestionDto);
 
     if (Object.keys(data).length === 0) {
@@ -311,7 +388,10 @@ export class QuestionsService {
 
       return this.mapQuestion(updated);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Question with id ${id} not found`);
       }
       throw error;
@@ -323,7 +403,10 @@ export class QuestionsService {
       await this.prisma.pregunta.delete({ where: { id } });
       return { deleted: true };
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Question with id ${id} not found`);
       }
       throw error;
@@ -342,7 +425,10 @@ export class QuestionsService {
     return answers.map((answer) => this.mapAnswer(answer));
   }
 
-  async createAnswer(questionId: number, dto: CreateAnswerDto): Promise<PublicAnswer> {
+  async createAnswer(
+    questionId: number,
+    dto: CreateAnswerDto,
+  ): Promise<PublicAnswer> {
     await this.ensureQuestionExists(questionId);
 
     const created = await this.prisma.respuesta.create({
@@ -353,14 +439,21 @@ export class QuestionsService {
     return this.mapAnswer(created);
   }
 
-  async updateAnswer(questionId: number, answerId: number, dto: UpdateAnswerDto): Promise<PublicAnswer> {
+  async updateAnswer(
+    questionId: number,
+    answerId: number,
+    dto: UpdateAnswerDto,
+  ): Promise<PublicAnswer> {
     await this.ensureQuestionExists(questionId);
     await this.ensureAnswerBelongsToQuestion(questionId, answerId);
 
     const data = this.buildUpdateAnswerData(dto);
 
     if (Object.keys(data).length === 0) {
-      const answer = await this.ensureAnswerBelongsToQuestion(questionId, answerId);
+      const answer = await this.ensureAnswerBelongsToQuestion(
+        questionId,
+        answerId,
+      );
       return this.mapAnswer(answer);
     }
 
@@ -373,14 +466,22 @@ export class QuestionsService {
 
       return this.mapAnswer(updated);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-        throw new NotFoundException(`Answer with id ${answerId} not found for question ${questionId}`);
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(
+          `Answer with id ${answerId} not found for question ${questionId}`,
+        );
       }
       throw error;
     }
   }
 
-  async removeAnswer(questionId: number, answerId: number): Promise<{ deleted: boolean }> {
+  async removeAnswer(
+    questionId: number,
+    answerId: number,
+  ): Promise<{ deleted: boolean }> {
     await this.ensureQuestionExists(questionId);
     await this.ensureAnswerBelongsToQuestion(questionId, answerId);
 
@@ -388,8 +489,13 @@ export class QuestionsService {
       await this.prisma.respuesta.delete({ where: { id: answerId } });
       return { deleted: true };
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-        throw new NotFoundException(`Answer with id ${answerId} not found for question ${questionId}`);
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(
+          `Answer with id ${answerId} not found for question ${questionId}`,
+        );
       }
       throw error;
     }

@@ -28,7 +28,9 @@ describe('PatientInstrumentsController', () => {
       ],
     }).compile();
 
-    controller = module.get<PatientInstrumentsController>(PatientInstrumentsController);
+    controller = module.get<PatientInstrumentsController>(
+      PatientInstrumentsController,
+    );
   });
 
   it('should be defined', () => {

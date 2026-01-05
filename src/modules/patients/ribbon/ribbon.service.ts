@@ -25,13 +25,10 @@ export class RibbonService {
 
   async findAll(): Promise<Ribbon[]> {
     const ribbons = await this.prisma.cinta.findMany({
-      orderBy: [
-        { orden: 'asc' },
-        { id: 'asc' },
-      ],
+      orderBy: [{ orden: 'asc' }, { id: 'asc' }],
     });
 
-    return ribbons.map(record => this.mapRibbon(record));
+    return ribbons.map((record) => this.mapRibbon(record));
   }
 
   async findOne(id: number): Promise<Ribbon> {
@@ -68,7 +65,9 @@ export class RibbonService {
     return ribbon;
   }
 
-  private buildWriteData(dto: Partial<CreateRibbonDto>): Prisma.cintaCreateInput & Prisma.cintaUpdateInput {
+  private buildWriteData(
+    dto: Partial<CreateRibbonDto>,
+  ): Prisma.cintaCreateInput & Prisma.cintaUpdateInput {
     const data: Record<string, unknown> = {};
     const source = dto as Record<string, unknown>;
 
@@ -120,7 +119,8 @@ export class RibbonService {
       return null;
     }
 
-    const parsed = typeof value === 'number' ? value : Number(String(value).trim());
+    const parsed =
+      typeof value === 'number' ? value : Number(String(value).trim());
     if (!Number.isFinite(parsed)) {
       return null;
     }

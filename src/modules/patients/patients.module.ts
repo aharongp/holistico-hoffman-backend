@@ -11,6 +11,17 @@ import { RibbonModule } from './ribbon/ribbon.module';
 import { PatientPunctualityModule } from './punctuality/patient-punctuality.module';
 
 @Module({
-  imports: [PatientModule, HistoryModule, ConsultationModule, VitalsModule, DentalModule, OcularModule, PatientInstrumentsModule, RedimensionModule, RibbonModule, PatientPunctualityModule]
+  imports: [
+    PatientModule,
+    HistoryModule,
+    ConsultationModule,
+    VitalsModule,
+    DentalModule,
+    OcularModule,
+    PatientInstrumentsModule,
+    RedimensionModule,
+    RibbonModule,
+    PatientPunctualityModule,
+  ],
 })
 export class PatientsModule {}

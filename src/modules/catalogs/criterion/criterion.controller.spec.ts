@@ -16,7 +16,9 @@ describe('CriterionController', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       controllers: [CriterionController],
-      providers: [{ provide: CriterionService, useValue: criterionServiceMock }],
+      providers: [
+        { provide: CriterionService, useValue: criterionServiceMock },
+      ],
     }).compile();
 
     controller = module.get<CriterionController>(CriterionController);

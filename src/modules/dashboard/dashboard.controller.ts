@@ -1,5 +1,9 @@
 import { Controller, Get } from '@nestjs/common';
-import { DashboardService, DashboardSummary, GenderDistributionItem } from './dashboard.service';
+import {
+  DashboardService,
+  DashboardSummary,
+  GenderDistributionItem,
+} from './dashboard.service';
 
 @Controller('dashboard')
 export class DashboardController {

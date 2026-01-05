@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { PatientInstrumentsService } from './patient-instruments.service';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
@@ -6,7 +15,9 @@ import { SubmitPatientInstrumentResponseDto } from './dto/submit-patient-instrum
 
 @Controller('patient-instruments')
 export class PatientInstrumentsController {
-  constructor(private readonly patientInstrumentsService: PatientInstrumentsService) {}
+  constructor(
+    private readonly patientInstrumentsService: PatientInstrumentsService,
+  ) {}
 
   @Post()
   create(@Body() createPatientInstrumentDto: CreatePatientInstrumentDto) {
@@ -39,8 +50,12 @@ export class PatientInstrumentsController {
   }
 
   @Get('results/patient/:patientId')
-  findAggregatedResultsByPatient(@Param('patientId', ParseIntPipe) patientId: number) {
-    return this.patientInstrumentsService.findAggregatedResultsByPatient(patientId);
+  findAggregatedResultsByPatient(
+    @Param('patientId', ParseIntPipe) patientId: number,
+  ) {
+    return this.patientInstrumentsService.findAggregatedResultsByPatient(
+      patientId,
+    );
   }
 
   @Get('results/user/:userId')
@@ -51,9 +66,13 @@ export class PatientInstrumentsController {
   @Post(':id/responses')
   submitResponses(
     @Param('id', ParseIntPipe) id: number,
-    @Body() submitPatientInstrumentResponseDto: SubmitPatientInstrumentResponseDto,
+    @Body()
+    submitPatientInstrumentResponseDto: SubmitPatientInstrumentResponseDto,
   ) {
-    return this.patientInstrumentsService.submitResponses(id, submitPatientInstrumentResponseDto);
+    return this.patientInstrumentsService.submitResponses(
+      id,
+      submitPatientInstrumentResponseDto,
+    );
   }
 
   @Get(':id')
@@ -62,8 +81,14 @@ export class PatientInstrumentsController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updatePatientInstrumentDto: UpdatePatientInstrumentDto) {
-    return this.patientInstrumentsService.update(id, updatePatientInstrumentDto);
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePatientInstrumentDto: UpdatePatientInstrumentDto,
+  ) {
+    return this.patientInstrumentsService.update(
+      id,
+      updatePatientInstrumentDto,
+    );
   }
 
   @Delete(':id')

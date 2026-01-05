@@ -43,7 +43,9 @@ export class VitalsService {
     });
 
     if (!patient) {
-      throw new NotFoundException('Paciente no encontrado para el usuario proporcionado');
+      throw new NotFoundException(
+        'Paciente no encontrado para el usuario proporcionado',
+      );
     }
 
     return patient.id;
@@ -94,7 +96,9 @@ export class VitalsService {
     return Number.isNaN(parsed) ? null : parsed;
   }
 
-  private parseDateInput(value: string | null | undefined): Date | null | undefined {
+  private parseDateInput(
+    value: string | null | undefined,
+  ): Date | null | undefined {
     if (value === undefined) {
       return undefined;
     }
@@ -150,7 +154,9 @@ export class VitalsService {
     return { systolic, diastolic };
   }
 
-  private sortByDateDesc<T extends { recordedAt: string | null }>(records: T[]): T[] {
+  private sortByDateDesc<T extends { recordedAt: string | null }>(
+    records: T[],
+  ): T[] {
     return [...records].sort((a, b) => {
       if (!a.recordedAt && !b.recordedAt) {
         return 0;
@@ -198,7 +204,11 @@ export class VitalsService {
   ): NumericVitalRecord[] {
     return entries.map<NumericVitalRecord>((entry) => ({
       id: entry.id,
-      recordedAt: this.resolveRecordedAt(entry.fecha, entry.updated_at, entry.created_at),
+      recordedAt: this.resolveRecordedAt(
+        entry.fecha,
+        entry.updated_at,
+        entry.created_at,
+      ),
       value: this.toNumber(entry.peso),
       rawValue: entry.peso,
       unit: 'kg',
@@ -233,9 +243,19 @@ export class VitalsService {
 
     const pulseEntries = pulses.map<NumericVitalRecord>((entry) => ({
       id: entry.id,
-      recordedAt: this.resolveRecordedAt(entry.fecha, entry.updated_at, entry.created_at),
-      value: entry.pulso === null || entry.pulso === undefined ? null : this.toNumber(entry.pulso),
-      rawValue: entry.pulso === null || entry.pulso === undefined ? null : String(entry.pulso),
+      recordedAt: this.resolveRecordedAt(
+        entry.fecha,
+        entry.updated_at,
+        entry.created_at,
+      ),
+      value:
+        entry.pulso === null || entry.pulso === undefined
+          ? null
+          : this.toNumber(entry.pulso),
+      rawValue:
+        entry.pulso === null || entry.pulso === undefined
+          ? null
+          : String(entry.pulso),
       unit: 'bpm',
       source: 'pulse',
     }));
@@ -277,7 +297,11 @@ export class VitalsService {
   ): BloodPressureRecord[] {
     return entries.map<BloodPressureRecord>((entry) => ({
       id: entry.id,
-      recordedAt: this.resolveRecordedAt(entry.fecha, entry.updated_at, entry.created_at),
+      recordedAt: this.resolveRecordedAt(
+        entry.fecha,
+        entry.updated_at,
+        entry.created_at,
+      ),
       systolic: this.toNumber(entry.sistolica),
       diastolic: this.toNumber(entry.diastolica),
       rawValue:
@@ -361,7 +385,11 @@ export class VitalsService {
   ): NumericVitalRecord[] {
     return glycemiaEntries.map<NumericVitalRecord>((entry) => ({
       id: entry.id,
-      recordedAt: this.resolveRecordedAt(entry.fecha, entry.updated_at, entry.created_at),
+      recordedAt: this.resolveRecordedAt(
+        entry.fecha,
+        entry.updated_at,
+        entry.created_at,
+      ),
       value: this.toNumber(entry.glicemia),
       rawValue: entry.glicemia,
       unit: 'mg/dL',
@@ -386,7 +414,11 @@ export class VitalsService {
   ): HeartRateRecoveryRecord[] {
     return heartRateEntries.map<HeartRateRecoveryRecord>((entry) => ({
       id: entry.id,
-      recordedAt: this.resolveRecordedAt(entry.fecha, entry.updated_at, entry.created_at),
+      recordedAt: this.resolveRecordedAt(
+        entry.fecha,
+        entry.updated_at,
+        entry.created_at,
+      ),
       resting: this.toNumber(entry.fcr),
       after5Minutes: this.toNumber(entry.fc_5_min_entrenamiento),
       after10Minutes: this.toNumber(entry.fc_10_min_entrenamiento),
@@ -417,8 +449,7 @@ export class VitalsService {
       bloodPressureEntries,
       heartRateEntries,
       weightEntries,
-    ] =
-      await Promise.all([
+    ] = await Promise.all([
       this.prisma.paciente_consulta.findMany({
         where: { id_paciente: patientId },
         orderBy: { fecha: 'desc' },
@@ -453,32 +484,34 @@ export class VitalsService {
           updated_at: true,
         },
       }),
-        this.prisma.paciente_tension_arterial.findMany({
-          where: { id_paciente: patientId },
-          orderBy: { fecha: 'desc' },
-          select: {
-            id: true,
-            fecha: true,
-            sistolica: true,
-            diastolica: true,
-            created_at: true,
-            updated_at: true,
-          },
-        }),
-        this.prisma.$queryRaw<Array<{
-        id: number;
-        id_paciente: number | null;
-        fecha: Date | null;
-        fcr: number | string | null;
-        fc_15_min: number | string | null;
-        fc_30_min: number | string | null;
-        fc_45_min: number | string | null;
-        fc_5_min_entrenamiento: number | string | null;
-        fc_10_min_entrenamiento: number | string | null;
-        entrenamiento: string | null;
-        created_at: Date | null;
-        updated_at: Date | null;
-      }>>`
+      this.prisma.paciente_tension_arterial.findMany({
+        where: { id_paciente: patientId },
+        orderBy: { fecha: 'desc' },
+        select: {
+          id: true,
+          fecha: true,
+          sistolica: true,
+          diastolica: true,
+          created_at: true,
+          updated_at: true,
+        },
+      }),
+      this.prisma.$queryRaw<
+        Array<{
+          id: number;
+          id_paciente: number | null;
+          fecha: Date | null;
+          fcr: number | string | null;
+          fc_15_min: number | string | null;
+          fc_30_min: number | string | null;
+          fc_45_min: number | string | null;
+          fc_5_min_entrenamiento: number | string | null;
+          fc_10_min_entrenamiento: number | string | null;
+          entrenamiento: string | null;
+          created_at: Date | null;
+          updated_at: Date | null;
+        }>
+      >`
         SELECT
           id,
           id_paciente,
@@ -514,17 +547,24 @@ export class VitalsService {
         ...this.mapConsultationWeightRecords(consultations),
         ...this.mapWeightTableRecords(weightEntries),
       ]),
-      pulse: this.sortByDateDesc(this.mapPulseRecords(consultations, pulseEntries)),
+      pulse: this.sortByDateDesc(
+        this.mapPulseRecords(consultations, pulseEntries),
+      ),
       bloodPressure: this.sortByDateDesc([
         ...this.mapBloodPressureRecords(consultations),
         ...this.mapBloodPressureTableRecords(bloodPressureEntries),
       ]),
       bodyMassIndex: this.sortByDateDesc([
         ...this.mapConsultationBodyMassIndexRecords(consultations),
-        ...this.mapBodyMassIndexFromWeightRecords(weightEntries, patientHeightInMeters),
+        ...this.mapBodyMassIndexFromWeightRecords(
+          weightEntries,
+          patientHeightInMeters,
+        ),
       ]),
       glycemia: this.sortByDateDesc(this.mapGlycemiaRecords(glycemiaEntries)),
-      heartRateRecovery: this.sortByDateDesc(this.mapHeartRateRecords(heartRateEntries)),
+      heartRateRecovery: this.sortByDateDesc(
+        this.mapHeartRateRecords(heartRateEntries),
+      ),
     };
   }
 
@@ -535,7 +575,9 @@ export class VitalsService {
     });
 
     if (!patient) {
-      throw new NotFoundException('Paciente no encontrado para el usuario proporcionado');
+      throw new NotFoundException(
+        'Paciente no encontrado para el usuario proporcionado',
+      );
     }
 
     return this.getByPatient(patient.id);
@@ -545,7 +587,10 @@ export class VitalsService {
    * Registra un peso para un paciente usando la tabla `paciente_peso`.
    * Devuelve el registro creado mapeado como NumericVitalRecord.
    */
-  async registerWeight(patientId: number, dto: CreateVitalDto): Promise<NumericVitalRecord> {
+  async registerWeight(
+    patientId: number,
+    dto: CreateVitalDto,
+  ): Promise<NumericVitalRecord> {
     await this.ensurePatientExists(patientId);
 
     const created = await this.prisma.paciente_peso.create({
@@ -560,7 +605,11 @@ export class VitalsService {
 
     return {
       id: created.id,
-      recordedAt: this.resolveRecordedAt(created.fecha, created.updated_at, created.created_at),
+      recordedAt: this.resolveRecordedAt(
+        created.fecha,
+        created.updated_at,
+        created.created_at,
+      ),
       value: this.toNumber(created.peso),
       rawValue: created.peso,
       unit: 'kg',
@@ -586,7 +635,7 @@ export class VitalsService {
     const updated = await this.prisma.paciente_peso.update({
       where: { id: recordId },
       data: {
-        peso: dto.peso === undefined ? undefined : dto.peso ?? null,
+        peso: dto.peso === undefined ? undefined : (dto.peso ?? null),
         fecha: this.parseDateInput(dto.fecha),
         updated_at: new Date(),
       },
@@ -617,7 +666,10 @@ export class VitalsService {
     await this.prisma.paciente_peso.delete({ where: { id: recordId } });
   }
 
-  async registerPulse(patientId: number, dto: CreatePulseDto): Promise<NumericVitalRecord> {
+  async registerPulse(
+    patientId: number,
+    dto: CreatePulseDto,
+  ): Promise<NumericVitalRecord> {
     await this.ensurePatientExists(patientId);
 
     const pulseValue = this.toNumber(dto.pulso);
@@ -633,9 +685,16 @@ export class VitalsService {
 
     return {
       id: created.id,
-      recordedAt: this.resolveRecordedAt(created.fecha, created.updated_at, created.created_at),
+      recordedAt: this.resolveRecordedAt(
+        created.fecha,
+        created.updated_at,
+        created.created_at,
+      ),
       value: this.toNumber(created.pulso),
-      rawValue: created.pulso === null || created.pulso === undefined ? null : String(created.pulso),
+      rawValue:
+        created.pulso === null || created.pulso === undefined
+          ? null
+          : String(created.pulso),
       unit: 'bpm',
       source: 'pulse',
     };
@@ -656,12 +715,18 @@ export class VitalsService {
       throw new NotFoundException('Registro de pulso no encontrado');
     }
 
-    const pulseValue = dto.pulso === undefined ? undefined : this.toNumber(dto.pulso);
+    const pulseValue =
+      dto.pulso === undefined ? undefined : this.toNumber(dto.pulso);
 
     const updated = await this.prisma.paciente_pulso.update({
       where: { id: recordId },
       data: {
-        pulso: pulseValue === undefined ? undefined : pulseValue === null ? null : Math.round(pulseValue),
+        pulso:
+          pulseValue === undefined
+            ? undefined
+            : pulseValue === null
+              ? null
+              : Math.round(pulseValue),
         fecha: this.parseDateInput(dto.fecha),
         updated_at: new Date(),
       },
@@ -700,22 +765,25 @@ export class VitalsService {
 
     const now = new Date();
     const fecha = dto.fecha ? new Date(dto.fecha) : now;
-    const toNullableNumber = (value: string | number | undefined): number | null =>
-      value === undefined ? null : this.toNumber(value);
+    const toNullableNumber = (
+      value: string | number | undefined,
+    ): number | null => (value === undefined ? null : this.toNumber(value));
 
-    const inserted = await this.prisma.$queryRaw<Array<{
-      id: number;
-      fecha: Date | null;
-      fcr: number | null;
-      fc_5_min_entrenamiento: number | null;
-      fc_10_min_entrenamiento: number | null;
-      fc_15_min: number | null;
-      fc_30_min: number | null;
-      fc_45_min: number | null;
-      entrenamiento: string | null;
-      created_at: Date | null;
-      updated_at: Date | null;
-    }>>`
+    const inserted = await this.prisma.$queryRaw<
+      Array<{
+        id: number;
+        fecha: Date | null;
+        fcr: number | null;
+        fc_5_min_entrenamiento: number | null;
+        fc_10_min_entrenamiento: number | null;
+        fc_15_min: number | null;
+        fc_30_min: number | null;
+        fc_45_min: number | null;
+        entrenamiento: string | null;
+        created_at: Date | null;
+        updated_at: Date | null;
+      }>
+    >`
       INSERT INTO paciente_frecuencia_cardiaca (
         id_paciente,
         fecha,
@@ -761,7 +829,11 @@ export class VitalsService {
 
     return {
       id: created.id,
-      recordedAt: this.resolveRecordedAt(created.fecha, created.updated_at, created.created_at),
+      recordedAt: this.resolveRecordedAt(
+        created.fecha,
+        created.updated_at,
+        created.created_at,
+      ),
       resting: this.toNumber(created.fcr),
       after5Minutes: this.toNumber(created.fc_5_min_entrenamiento),
       after10Minutes: this.toNumber(created.fc_10_min_entrenamiento),
@@ -780,19 +852,21 @@ export class VitalsService {
   ): Promise<HeartRateRecoveryRecord> {
     await this.ensurePatientExists(patientId);
 
-    const existingRecords = await this.prisma.$queryRaw<Array<{
-      id: number;
-      fecha: Date | null;
-      fcr: number | string | null;
-      fc_5_min_entrenamiento: number | string | null;
-      fc_10_min_entrenamiento: number | string | null;
-      fc_15_min: number | string | null;
-      fc_30_min: number | string | null;
-      fc_45_min: number | string | null;
-      entrenamiento: string | null;
-      created_at: Date | null;
-      updated_at: Date | null;
-    }>>`
+    const existingRecords = await this.prisma.$queryRaw<
+      Array<{
+        id: number;
+        fecha: Date | null;
+        fcr: number | string | null;
+        fc_5_min_entrenamiento: number | string | null;
+        fc_10_min_entrenamiento: number | string | null;
+        fc_15_min: number | string | null;
+        fc_30_min: number | string | null;
+        fc_45_min: number | string | null;
+        entrenamiento: string | null;
+        created_at: Date | null;
+        updated_at: Date | null;
+      }>
+    >`
       SELECT
         id,
         fecha,
@@ -812,7 +886,9 @@ export class VitalsService {
     `;
 
     if (!existingRecords.length) {
-      throw new NotFoundException('Registro de frecuencia cardiaca no encontrado');
+      throw new NotFoundException(
+        'Registro de frecuencia cardiaca no encontrado',
+      );
     }
 
     const current = existingRecords[0];
@@ -827,7 +903,8 @@ export class VitalsService {
     const fc15 = toNullableNumber(dto.fc15Min);
     const fc30 = toNullableNumber(dto.fc30Min);
     const fc45 = toNullableNumber(dto.fc45Min);
-    const entrenamiento = dto.entrenamiento === undefined ? undefined : dto.entrenamiento ?? null;
+    const entrenamiento =
+      dto.entrenamiento === undefined ? undefined : (dto.entrenamiento ?? null);
 
     await this.prisma.$executeRaw`
       UPDATE paciente_frecuencia_cardiaca
@@ -845,19 +922,21 @@ export class VitalsService {
         AND id_paciente = ${patientId}
     `;
 
-    const updatedRecords = await this.prisma.$queryRaw<Array<{
-      id: number;
-      fecha: Date | null;
-      fcr: number | string | null;
-      fc_15_min: number | string | null;
-      fc_30_min: number | string | null;
-      fc_45_min: number | string | null;
-      fc_5_min_entrenamiento: number | string | null;
-      fc_10_min_entrenamiento: number | string | null;
-      entrenamiento: string | null;
-      created_at: Date | null;
-      updated_at: Date | null;
-    }>>`
+    const updatedRecords = await this.prisma.$queryRaw<
+      Array<{
+        id: number;
+        fecha: Date | null;
+        fcr: number | string | null;
+        fc_15_min: number | string | null;
+        fc_30_min: number | string | null;
+        fc_45_min: number | string | null;
+        fc_5_min_entrenamiento: number | string | null;
+        fc_10_min_entrenamiento: number | string | null;
+        entrenamiento: string | null;
+        created_at: Date | null;
+        updated_at: Date | null;
+      }>
+    >`
       SELECT
         id,
         fecha,
@@ -889,11 +968,16 @@ export class VitalsService {
     `;
 
     if (!result) {
-      throw new NotFoundException('Registro de frecuencia cardiaca no encontrado');
+      throw new NotFoundException(
+        'Registro de frecuencia cardiaca no encontrado',
+      );
     }
   }
 
-  async registerBodyMass(patientId: number, dto: CreateBodyMassDto): Promise<NumericVitalRecord> {
+  async registerBodyMass(
+    patientId: number,
+    dto: CreateBodyMassDto,
+  ): Promise<NumericVitalRecord> {
     await this.ensurePatientExists(patientId);
 
     const created = await this.prisma.paciente_masa_corporal.create({
@@ -919,7 +1003,11 @@ export class VitalsService {
 
     return {
       id: created.id,
-      recordedAt: this.resolveRecordedAt(created.fecha, created.updated_at, created.created_at),
+      recordedAt: this.resolveRecordedAt(
+        created.fecha,
+        created.updated_at,
+        created.created_at,
+      ),
       value: this.toNumber(created.peso),
       rawValue: created.peso,
       unit: 'kg',
@@ -946,21 +1034,40 @@ export class VitalsService {
       where: { id: recordId },
       data: {
         fecha: this.parseDateInput(dto.fecha),
-        peso: dto.peso === undefined ? undefined : dto.peso === null ? null : String(dto.peso),
-        cuello: dto.cuello === undefined ? undefined : dto.cuello ?? null,
-        busto: dto.busto === undefined ? undefined : dto.busto ?? null,
-        cintura: dto.cintura === undefined ? undefined : dto.cintura ?? null,
-        cadera: dto.cadera === undefined ? undefined : dto.cadera ?? null,
-        brazo_derecho: dto.brazoDerecho === undefined ? undefined : dto.brazoDerecho ?? null,
-        muslo_derecho: dto.musloDerecho === undefined ? undefined : dto.musloDerecho ?? null,
-        foto_rostro: dto.fotoRostro === undefined ? undefined : dto.fotoRostro ?? null,
+        peso:
+          dto.peso === undefined
+            ? undefined
+            : dto.peso === null
+              ? null
+              : String(dto.peso),
+        cuello: dto.cuello === undefined ? undefined : (dto.cuello ?? null),
+        busto: dto.busto === undefined ? undefined : (dto.busto ?? null),
+        cintura: dto.cintura === undefined ? undefined : (dto.cintura ?? null),
+        cadera: dto.cadera === undefined ? undefined : (dto.cadera ?? null),
+        brazo_derecho:
+          dto.brazoDerecho === undefined
+            ? undefined
+            : (dto.brazoDerecho ?? null),
+        muslo_derecho:
+          dto.musloDerecho === undefined
+            ? undefined
+            : (dto.musloDerecho ?? null),
+        foto_rostro:
+          dto.fotoRostro === undefined ? undefined : (dto.fotoRostro ?? null),
         foto_cuerpo_frente:
-          dto.fotoCuerpoFrente === undefined ? undefined : dto.fotoCuerpoFrente ?? null,
+          dto.fotoCuerpoFrente === undefined
+            ? undefined
+            : (dto.fotoCuerpoFrente ?? null),
         foto_cuerpo_perfil:
-          dto.fotoCuerpoPerfil === undefined ? undefined : dto.fotoCuerpoPerfil ?? null,
+          dto.fotoCuerpoPerfil === undefined
+            ? undefined
+            : (dto.fotoCuerpoPerfil ?? null),
         foto_espalda_entero:
-          dto.fotoEspaldaEntero === undefined ? undefined : dto.fotoEspaldaEntero ?? null,
-        foto_extra: dto.fotoExtra === undefined ? undefined : dto.fotoExtra ?? null,
+          dto.fotoEspaldaEntero === undefined
+            ? undefined
+            : (dto.fotoEspaldaEntero ?? null),
+        foto_extra:
+          dto.fotoExtra === undefined ? undefined : (dto.fotoExtra ?? null),
         updated_at: new Date(),
       },
       select: {
@@ -974,7 +1081,11 @@ export class VitalsService {
 
     return {
       id: updated.id,
-      recordedAt: this.resolveRecordedAt(updated.fecha, updated.updated_at, updated.created_at),
+      recordedAt: this.resolveRecordedAt(
+        updated.fecha,
+        updated.updated_at,
+        updated.created_at,
+      ),
       value: this.toNumber(updated.peso),
       rawValue: updated.peso,
       unit: 'kg',
@@ -994,10 +1105,15 @@ export class VitalsService {
       throw new NotFoundException('Registro de masa corporal no encontrado');
     }
 
-    await this.prisma.paciente_masa_corporal.delete({ where: { id: recordId } });
+    await this.prisma.paciente_masa_corporal.delete({
+      where: { id: recordId },
+    });
   }
 
-  async registerGlycemia(patientId: number, dto: CreateGlycemiaDto): Promise<NumericVitalRecord> {
+  async registerGlycemia(
+    patientId: number,
+    dto: CreateGlycemiaDto,
+  ): Promise<NumericVitalRecord> {
     await this.ensurePatientExists(patientId);
 
     const created = await this.prisma.paciente_glicemia.create({
@@ -1012,7 +1128,11 @@ export class VitalsService {
 
     return {
       id: created.id,
-      recordedAt: this.resolveRecordedAt(created.fecha, created.updated_at, created.created_at),
+      recordedAt: this.resolveRecordedAt(
+        created.fecha,
+        created.updated_at,
+        created.created_at,
+      ),
       value: this.toNumber(created.glicemia),
       rawValue: created.glicemia,
       unit: 'mg/dL',
@@ -1090,7 +1210,11 @@ export class VitalsService {
 
     return {
       id: created.id,
-      recordedAt: this.resolveRecordedAt(created.fecha, created.updated_at, created.created_at),
+      recordedAt: this.resolveRecordedAt(
+        created.fecha,
+        created.updated_at,
+        created.created_at,
+      ),
       systolic: this.toNumber(created.sistolica),
       diastolic: this.toNumber(created.diastolica),
       rawValue:
@@ -1116,15 +1240,27 @@ export class VitalsService {
       throw new NotFoundException('Registro de tension arterial no encontrado');
     }
 
-    const systolic = dto.sistolica === undefined ? undefined : this.toNumber(dto.sistolica);
-    const diastolic = dto.diastolica === undefined ? undefined : this.toNumber(dto.diastolica);
+    const systolic =
+      dto.sistolica === undefined ? undefined : this.toNumber(dto.sistolica);
+    const diastolic =
+      dto.diastolica === undefined ? undefined : this.toNumber(dto.diastolica);
 
     const updated = await this.prisma.paciente_tension_arterial.update({
       where: { id: recordId },
       data: {
         fecha: this.parseDateInput(dto.fecha),
-        sistolica: systolic === undefined ? undefined : systolic === null ? null : Math.round(systolic),
-        diastolica: diastolic === undefined ? undefined : diastolic === null ? null : Math.round(diastolic),
+        sistolica:
+          systolic === undefined
+            ? undefined
+            : systolic === null
+              ? null
+              : Math.round(systolic),
+        diastolica:
+          diastolic === undefined
+            ? undefined
+            : diastolic === null
+              ? null
+              : Math.round(diastolic),
         updated_at: new Date(),
       },
       select: {
@@ -1140,7 +1276,10 @@ export class VitalsService {
     return this.mapBloodPressureTableRecords([updated])[0];
   }
 
-  async deleteBloodPressure(patientId: number, recordId: number): Promise<void> {
+  async deleteBloodPressure(
+    patientId: number,
+    recordId: number,
+  ): Promise<void> {
     await this.ensurePatientExists(patientId);
 
     const existing = await this.prisma.paciente_tension_arterial.findFirst({
@@ -1152,10 +1291,15 @@ export class VitalsService {
       throw new NotFoundException('Registro de tension arterial no encontrado');
     }
 
-    await this.prisma.paciente_tension_arterial.delete({ where: { id: recordId } });
+    await this.prisma.paciente_tension_arterial.delete({
+      where: { id: recordId },
+    });
   }
 
-  async registerWeightByUser(userId: number, dto: CreateVitalDto): Promise<NumericVitalRecord> {
+  async registerWeightByUser(
+    userId: number,
+    dto: CreateVitalDto,
+  ): Promise<NumericVitalRecord> {
     const patientId = await this.resolvePatientIdByUser(userId);
     return this.registerWeight(patientId, dto);
   }
@@ -1174,7 +1318,10 @@ export class VitalsService {
     return this.deleteWeight(patientId, recordId);
   }
 
-  async registerPulseByUser(userId: number, dto: CreatePulseDto): Promise<NumericVitalRecord> {
+  async registerPulseByUser(
+    userId: number,
+    dto: CreatePulseDto,
+  ): Promise<NumericVitalRecord> {
     const patientId = await this.resolvePatientIdByUser(userId);
     return this.registerPulse(patientId, dto);
   }
@@ -1276,7 +1423,10 @@ export class VitalsService {
     return this.updateBloodPressure(patientId, recordId, dto);
   }
 
-  async deleteBloodPressureByUser(userId: number, recordId: number): Promise<void> {
+  async deleteBloodPressureByUser(
+    userId: number,
+    recordId: number,
+  ): Promise<void> {
     const patientId = await this.resolvePatientIdByUser(userId);
     return this.deleteBloodPressure(patientId, recordId);
   }

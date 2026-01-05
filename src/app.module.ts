@@ -13,7 +13,17 @@ import { PrismaModule } from './prisma/prisma.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 
 @Module({
-  imports: [ConfigModule, AuthModule, UsersModule, CompaniesModule, CatalogsModule, PatientsModule, CosmobiologyModule, PrismaModule, DashboardModule],
+  imports: [
+    ConfigModule,
+    AuthModule,
+    UsersModule,
+    CompaniesModule,
+    CatalogsModule,
+    PatientsModule,
+    CosmobiologyModule,
+    PrismaModule,
+    DashboardModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })

@@ -38,7 +38,10 @@ describe('InstrumentsService', () => {
     };
 
     const module: TestingModule = await Test.createTestingModule({
-      providers: [InstrumentsService, { provide: PrismaService, useValue: prismaMock }],
+      providers: [
+        InstrumentsService,
+        { provide: PrismaService, useValue: prismaMock },
+      ],
     }).compile();
 
     service = module.get<InstrumentsService>(InstrumentsService);
@@ -189,6 +192,8 @@ describe('InstrumentsService', () => {
 
     await expect(service.removeType(15)).resolves.toEqual({ deleted: true });
 
-    expect(prismaMock.instrumento_tipo.delete).toHaveBeenCalledWith({ where: { id: 15 } });
+    expect(prismaMock.instrumento_tipo.delete).toHaveBeenCalledWith({
+      where: { id: 15 },
+    });
   });
 });

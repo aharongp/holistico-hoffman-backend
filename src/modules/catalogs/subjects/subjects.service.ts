@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateSubjectDto } from './dto/create-subject.dto';
 import { UpdateSubjectDto } from './dto/update-subject.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -78,16 +82,18 @@ export class SubjectsService {
     return data;
   }
 
-  private mapSubject<TEntity extends {
-    id: number;
-    nombre: string | null;
-    descripcion: string | null;
-    user_created: string | null;
-    created_at: Date | null;
-    updated_at: Date | null;
-    tipo_instrumento: string | null;
-    id_cinta: number | null;
-  }>(record: TEntity): PublicSubject {
+  private mapSubject<
+    TEntity extends {
+      id: number;
+      nombre: string | null;
+      descripcion: string | null;
+      user_created: string | null;
+      created_at: Date | null;
+      updated_at: Date | null;
+      tipo_instrumento: string | null;
+      id_cinta: number | null;
+    },
+  >(record: TEntity): PublicSubject {
     return {
       id: record.id,
       nombre: record.nombre ?? null,
@@ -162,7 +168,10 @@ export class SubjectsService {
     return this.mapSubject(subject);
   }
 
-  async update(id: number, updateSubjectDto: UpdateSubjectDto): Promise<PublicSubject> {
+  async update(
+    id: number,
+    updateSubjectDto: UpdateSubjectDto,
+  ): Promise<PublicSubject> {
     const data = this.buildUpdateData(updateSubjectDto);
 
     if (Object.keys(data).length === 0) {
@@ -187,7 +196,10 @@ export class SubjectsService {
 
       return this.mapSubject(updated);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Subject with id ${id} not found`);
       }
       throw error;
@@ -199,7 +211,10 @@ export class SubjectsService {
       await this.prisma.tema.delete({ where: { id } });
       return { deleted: true };
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Subject with id ${id} not found`);
       }
       throw error;

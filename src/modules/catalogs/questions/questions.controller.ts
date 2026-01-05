@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { QuestionsService } from './questions.service';
 import { CreateQuestionDto } from './dto/create-question.dto';
 import { UpdateQuestionDto } from './dto/update-question.dto';
@@ -25,7 +34,10 @@ export class QuestionsController {
   }
 
   @Patch(':id')
-  update(@Param('id', ParseIntPipe) id: number, @Body() updateQuestionDto: UpdateQuestionDto) {
+  update(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateQuestionDto: UpdateQuestionDto,
+  ) {
     return this.questionsService.update(id, updateQuestionDto);
   }
 
@@ -53,7 +65,11 @@ export class QuestionsController {
     @Param('answerId', ParseIntPipe) answerId: number,
     @Body() updateAnswerDto: UpdateAnswerDto,
   ) {
-    return this.questionsService.updateAnswer(questionId, answerId, updateAnswerDto);
+    return this.questionsService.updateAnswer(
+      questionId,
+      answerId,
+      updateAnswerDto,
+    );
   }
 
   @Delete(':questionId/answers/:answerId')

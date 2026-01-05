@@ -46,7 +46,9 @@ const INSTRUMENT_SELECT = {
   color_respuesta: true,
 } satisfies Prisma.instrumentoSelect;
 
-type InstrumentRecord = Prisma.instrumentoGetPayload<{ select: typeof INSTRUMENT_SELECT }>;
+type InstrumentRecord = Prisma.instrumentoGetPayload<{
+  select: typeof INSTRUMENT_SELECT;
+}>;
 
 type InstrumentTypeRecord = Prisma.instrumento_tipoGetPayload<{
   select: {
@@ -136,13 +138,20 @@ export class InstrumentsService {
     return 0;
   }
 
-  private normalizeResultDelivery(value: unknown): 'sistema' | 'programado' | null {
+  private normalizeResultDelivery(
+    value: unknown,
+  ): 'sistema' | 'programado' | null {
     if (value === null || typeof value === 'undefined') {
       return null;
     }
 
     const normalized = String(value).trim().toLowerCase();
-    if (!normalized || normalized === 'null' || normalized === 'ninguno' || normalized === 'none') {
+    if (
+      !normalized ||
+      normalized === 'null' ||
+      normalized === 'ninguno' ||
+      normalized === 'none'
+    ) {
       return null;
     }
 
@@ -150,11 +159,17 @@ export class InstrumentsService {
       return normalized;
     }
 
-    throw new BadRequestException('El valor de resultados solo puede ser "sistema" o "programado"');
+    throw new BadRequestException(
+      'El valor de resultados solo puede ser "sistema" o "programado"',
+    );
   }
 
-  private buildCreateData(dto: CreateInstrumentDto): Prisma.instrumentoCreateInput {
-    const idInstrumentType = this.normalizeNumber(dto.id_instrumento_tipo ?? dto.instrumentTypeId);
+  private buildCreateData(
+    dto: CreateInstrumentDto,
+  ): Prisma.instrumentoCreateInput {
+    const idInstrumentType = this.normalizeNumber(
+      dto.id_instrumento_tipo ?? dto.instrumentTypeId,
+    );
     const idTema = this.normalizeNumber(dto.id_tema ?? dto.subjectId);
 
     return {
@@ -165,48 +180,93 @@ export class InstrumentsService {
       activo: this.normalizeActiveFlag(dto.activo ?? dto.isActive),
       user_created: this.normalizeString(dto.user_created ?? dto.userCreated),
       disponible: this.normalizeString(dto.disponible ?? dto.availability),
-      resultados: this.normalizeResultDelivery(dto.resultados ?? dto.resultDelivery),
-      color_respuesta: this.normalizeColorFlag(dto.color_respuesta ?? dto.colorResponse),
+      resultados: this.normalizeResultDelivery(
+        dto.resultados ?? dto.resultDelivery,
+      ),
+      color_respuesta: this.normalizeColorFlag(
+        dto.color_respuesta ?? dto.colorResponse,
+      ),
     };
   }
 
-  private buildUpdateData(dto: UpdateInstrumentDto): Prisma.instrumentoUpdateInput {
+  private buildUpdateData(
+    dto: UpdateInstrumentDto,
+  ): Prisma.instrumentoUpdateInput {
     const data: Prisma.instrumentoUpdateInput = {};
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'id_instrumento_tipo') || Object.prototype.hasOwnProperty.call(dto, 'instrumentTypeId')) {
-      data.id_instrumento_tipo = this.normalizeNumber(dto.id_instrumento_tipo ?? dto.instrumentTypeId);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'id_instrumento_tipo') ||
+      Object.prototype.hasOwnProperty.call(dto, 'instrumentTypeId')
+    ) {
+      data.id_instrumento_tipo = this.normalizeNumber(
+        dto.id_instrumento_tipo ?? dto.instrumentTypeId,
+      );
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'id_tema') || Object.prototype.hasOwnProperty.call(dto, 'subjectId')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'id_tema') ||
+      Object.prototype.hasOwnProperty.call(dto, 'subjectId')
+    ) {
       data.id_tema = this.normalizeNumber(dto.id_tema ?? dto.subjectId);
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'descripcion') || Object.prototype.hasOwnProperty.call(dto, 'description')) {
-      data.descripcion = this.normalizeString(dto.descripcion ?? dto.description);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'descripcion') ||
+      Object.prototype.hasOwnProperty.call(dto, 'description')
+    ) {
+      data.descripcion = this.normalizeString(
+        dto.descripcion ?? dto.description,
+      );
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'recurso') || Object.prototype.hasOwnProperty.call(dto, 'resource')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'recurso') ||
+      Object.prototype.hasOwnProperty.call(dto, 'resource')
+    ) {
       data.recurso = this.normalizeString(dto.recurso ?? dto.resource);
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'activo') || Object.prototype.hasOwnProperty.call(dto, 'isActive')) {
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'activo') ||
+      Object.prototype.hasOwnProperty.call(dto, 'isActive')
+    ) {
       data.activo = this.normalizeActiveFlag(dto.activo ?? dto.isActive);
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'user_created') || Object.prototype.hasOwnProperty.call(dto, 'userCreated')) {
-      data.user_created = this.normalizeString(dto.user_created ?? dto.userCreated);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'user_created') ||
+      Object.prototype.hasOwnProperty.call(dto, 'userCreated')
+    ) {
+      data.user_created = this.normalizeString(
+        dto.user_created ?? dto.userCreated,
+      );
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'disponible') || Object.prototype.hasOwnProperty.call(dto, 'availability')) {
-      data.disponible = this.normalizeString(dto.disponible ?? dto.availability);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'disponible') ||
+      Object.prototype.hasOwnProperty.call(dto, 'availability')
+    ) {
+      data.disponible = this.normalizeString(
+        dto.disponible ?? dto.availability,
+      );
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'resultados') || Object.prototype.hasOwnProperty.call(dto, 'resultDelivery')) {
-      data.resultados = this.normalizeResultDelivery(dto.resultados ?? dto.resultDelivery);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'resultados') ||
+      Object.prototype.hasOwnProperty.call(dto, 'resultDelivery')
+    ) {
+      data.resultados = this.normalizeResultDelivery(
+        dto.resultados ?? dto.resultDelivery,
+      );
     }
 
-    if (Object.prototype.hasOwnProperty.call(dto, 'color_respuesta') || Object.prototype.hasOwnProperty.call(dto, 'colorResponse')) {
-      data.color_respuesta = this.normalizeColorFlag(dto.color_respuesta ?? dto.colorResponse);
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'color_respuesta') ||
+      Object.prototype.hasOwnProperty.call(dto, 'colorResponse')
+    ) {
+      data.color_respuesta = this.normalizeColorFlag(
+        dto.color_respuesta ?? dto.colorResponse,
+      );
     }
 
     return data;
@@ -229,7 +289,9 @@ export class InstrumentsService {
     };
   }
 
-  private mapInstrumentType(record: InstrumentTypeRecord): PublicInstrumentType {
+  private mapInstrumentType(
+    record: InstrumentTypeRecord,
+  ): PublicInstrumentType {
     return {
       id: record.id,
       nombre: record.nombre ?? null,
@@ -259,10 +321,14 @@ export class InstrumentsService {
     return Number.isFinite(numeric) ? numeric : null;
   }
 
-  private buildTypeCreateData(dto: CreateInstrumentTypeDto): Prisma.instrumento_tipoCreateInput {
+  private buildTypeCreateData(
+    dto: CreateInstrumentTypeDto,
+  ): Prisma.instrumento_tipoCreateInput {
     const nombre = this.normalizeTypeStrings(dto.nombre);
     if (!nombre) {
-      throw new BadRequestException('El nombre del tipo de instrumento es obligatorio');
+      throw new BadRequestException(
+        'El nombre del tipo de instrumento es obligatorio',
+      );
     }
 
     return {
@@ -273,13 +339,17 @@ export class InstrumentsService {
     };
   }
 
-  private buildTypeUpdateData(dto: UpdateInstrumentTypeDto): Prisma.instrumento_tipoUpdateInput {
+  private buildTypeUpdateData(
+    dto: UpdateInstrumentTypeDto,
+  ): Prisma.instrumento_tipoUpdateInput {
     const data: Prisma.instrumento_tipoUpdateInput = {};
 
     if (Object.prototype.hasOwnProperty.call(dto, 'nombre')) {
       const nombre = this.normalizeTypeStrings(dto.nombre);
       if (!nombre) {
-        throw new BadRequestException('El nombre del tipo de instrumento es obligatorio');
+        throw new BadRequestException(
+          'El nombre del tipo de instrumento es obligatorio',
+        );
       }
       data.nombre = nombre;
     }
@@ -299,7 +369,9 @@ export class InstrumentsService {
     return data;
   }
 
-  async create(createInstrumentDto: CreateInstrumentDto): Promise<PublicInstrument> {
+  async create(
+    createInstrumentDto: CreateInstrumentDto,
+  ): Promise<PublicInstrument> {
     const data = this.buildCreateData(createInstrumentDto);
 
     const created = await this.prisma.instrumento.create({
@@ -314,7 +386,7 @@ export class InstrumentsService {
     const instruments = await this.prisma.instrumento.findMany({
       select: INSTRUMENT_SELECT,
     });
-    return instruments.map(i => this.mapInstrument(i));
+    return instruments.map((i) => this.mapInstrument(i));
   }
 
   async findOne(id: number): Promise<PublicInstrument | null> {
@@ -326,7 +398,10 @@ export class InstrumentsService {
     return this.mapInstrument(i);
   }
 
-  async update(id: number, updateInstrumentDto: UpdateInstrumentDto): Promise<PublicInstrument | null> {
+  async update(
+    id: number,
+    updateInstrumentDto: UpdateInstrumentDto,
+  ): Promise<PublicInstrument | null> {
     const data = this.buildUpdateData(updateInstrumentDto);
     const updated = await this.prisma.instrumento.update({
       where: { id },
@@ -355,7 +430,7 @@ export class InstrumentsService {
         id_criterio: true,
       },
     });
-    return types.map(t => this.mapInstrumentType(t));
+    return types.map((t) => this.mapInstrumentType(t));
   }
 
   // Return instrument types created by a specific user (matches user_created)
@@ -372,7 +447,7 @@ export class InstrumentsService {
         id_criterio: true,
       },
     });
-    return types.map(t => this.mapInstrumentType(t));
+    return types.map((t) => this.mapInstrumentType(t));
   }
 
   // Return instruments that belong to a given instrument type id
@@ -381,10 +456,12 @@ export class InstrumentsService {
       where: { id_instrumento_tipo: typeId },
       select: INSTRUMENT_SELECT,
     });
-    return instruments.map(i => this.mapInstrument(i));
+    return instruments.map((i) => this.mapInstrument(i));
   }
 
-  async createType(dto: CreateInstrumentTypeDto): Promise<PublicInstrumentType> {
+  async createType(
+    dto: CreateInstrumentTypeDto,
+  ): Promise<PublicInstrumentType> {
     const data = this.buildTypeCreateData(dto);
     const created = await this.prisma.instrumento_tipo.create({
       data,
@@ -401,7 +478,10 @@ export class InstrumentsService {
     return this.mapInstrumentType(created);
   }
 
-  async updateType(id: number, dto: UpdateInstrumentTypeDto): Promise<PublicInstrumentType> {
+  async updateType(
+    id: number,
+    dto: UpdateInstrumentTypeDto,
+  ): Promise<PublicInstrumentType> {
     const data = this.buildTypeUpdateData(dto);
     const updated = await this.prisma.instrumento_tipo.update({
       where: { id },

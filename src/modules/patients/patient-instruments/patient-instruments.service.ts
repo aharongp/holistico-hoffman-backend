@@ -1,8 +1,15 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { PatientInstrumentAssignment, PatientInstrumentResponse } from './entities/patient-instrument.entity';
+import {
+  PatientInstrumentAssignment,
+  PatientInstrumentResponse,
+} from './entities/patient-instrument.entity';
 import {
   AttitudinalStrengthResult,
   DailyReviewResult,
@@ -13,8 +20,15 @@ import {
   TestResult,
   WheelResult,
 } from './entities/patient-instrument-results.entity';
-import { Prisma, paciente_instrumento, paciente_instrumento_respuesta } from '@prisma/client';
-import { SubmitInstrumentAnswerDto, SubmitPatientInstrumentResponseDto } from './dto/submit-patient-instrument-response.dto';
+import {
+  Prisma,
+  paciente_instrumento,
+  paciente_instrumento_respuesta,
+} from '@prisma/client';
+import {
+  SubmitInstrumentAnswerDto,
+  SubmitPatientInstrumentResponseDto,
+} from './dto/submit-patient-instrument-response.dto';
 import {
   buildAttitudinalSummary,
   buildCodependencyResult,
@@ -29,16 +43,22 @@ import {
 export class PatientInstrumentsService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(createPatientInstrumentDto: CreatePatientInstrumentDto): Promise<PatientInstrumentAssignment> {
+  async create(
+    createPatientInstrumentDto: CreatePatientInstrumentDto,
+  ): Promise<PatientInstrumentAssignment> {
     const patientId = this.normalizeNumber(
-      (createPatientInstrumentDto as any).id_paciente ?? (createPatientInstrumentDto as any).patientId,
+      (createPatientInstrumentDto as any).id_paciente ??
+        (createPatientInstrumentDto as any).patientId,
     );
     if (patientId === null) {
-      throw new BadRequestException('Se requiere el identificador del paciente.');
+      throw new BadRequestException(
+        'Se requiere el identificador del paciente.',
+      );
     }
 
     const instrumentTypeId = this.normalizeNumber(
-      (createPatientInstrumentDto as any).id_instrumento_tipo ?? (createPatientInstrumentDto as any).instrumentTypeId,
+      (createPatientInstrumentDto as any).id_instrumento_tipo ??
+        (createPatientInstrumentDto as any).instrumentTypeId,
     );
     if (instrumentTypeId === null) {
       throw new BadRequestException('Se requiere el tipo de instrumento.');
@@ -48,72 +68,100 @@ export class PatientInstrumentsService {
     await this.ensureInstrumentTypeExists(instrumentTypeId);
 
     const ribbonId = this.normalizeNumber(
-      (createPatientInstrumentDto as any).id_cinta ?? (createPatientInstrumentDto as any).ribbonId,
+      (createPatientInstrumentDto as any).id_cinta ??
+        (createPatientInstrumentDto as any).ribbonId,
     );
     if (ribbonId !== null) {
       await this.ensureRibbonExists(ribbonId);
     }
 
-    const hasAssignedAt = this.hasAnyKey(createPatientInstrumentDto, ['fecha_instrumento', 'assignedAt']);
-    const rawAssignedAt = (createPatientInstrumentDto as any).fecha_instrumento
-      ?? (createPatientInstrumentDto as any).assignedAt;
+    const hasAssignedAt = this.hasAnyKey(createPatientInstrumentDto, [
+      'fecha_instrumento',
+      'assignedAt',
+    ]);
+    const rawAssignedAt =
+      (createPatientInstrumentDto as any).fecha_instrumento ??
+      (createPatientInstrumentDto as any).assignedAt;
     const assignedAt = this.normalizeDate(rawAssignedAt);
     if (
-      hasAssignedAt
-      && assignedAt === null
-      && rawAssignedAt !== null
-      && rawAssignedAt !== undefined
-      && rawAssignedAt !== ''
+      hasAssignedAt &&
+      assignedAt === null &&
+      rawAssignedAt !== null &&
+      rawAssignedAt !== undefined &&
+      rawAssignedAt !== ''
     ) {
       throw new BadRequestException('La fecha de asignación no es válida.');
     }
 
-    const hasValidUntil = this.hasAnyKey(createPatientInstrumentDto, ['valido_hasta', 'validUntil']);
-    const rawValidUntil = (createPatientInstrumentDto as any).valido_hasta
-      ?? (createPatientInstrumentDto as any).validUntil;
+    const hasValidUntil = this.hasAnyKey(createPatientInstrumentDto, [
+      'valido_hasta',
+      'validUntil',
+    ]);
+    const rawValidUntil =
+      (createPatientInstrumentDto as any).valido_hasta ??
+      (createPatientInstrumentDto as any).validUntil;
     const validUntil = this.normalizeDate(rawValidUntil);
     if (
-      hasValidUntil
-      && validUntil === null
-      && rawValidUntil !== null
-      && rawValidUntil !== undefined
-      && rawValidUntil !== ''
+      hasValidUntil &&
+      validUntil === null &&
+      rawValidUntil !== null &&
+      rawValidUntil !== undefined &&
+      rawValidUntil !== ''
     ) {
       throw new BadRequestException('La fecha de vencimiento no es válida.');
     }
 
     const completedFlag = this.normalizeBoolean(
-      (createPatientInstrumentDto as any).completado ?? (createPatientInstrumentDto as any).completed,
+      (createPatientInstrumentDto as any).completado ??
+        (createPatientInstrumentDto as any).completed,
     );
-    if (this.hasAnyKey(createPatientInstrumentDto, ['completado', 'completed']) && completedFlag === null) {
+    if (
+      this.hasAnyKey(createPatientInstrumentDto, ['completado', 'completed']) &&
+      completedFlag === null
+    ) {
       throw new BadRequestException('El indicador de completado no es válido.');
     }
 
     const evaluatedFlag = this.normalizeBoolean(
-      (createPatientInstrumentDto as any).evaluado ?? (createPatientInstrumentDto as any).evaluated,
+      (createPatientInstrumentDto as any).evaluado ??
+        (createPatientInstrumentDto as any).evaluated,
     );
-    if (this.hasAnyKey(createPatientInstrumentDto, ['evaluado', 'evaluated']) && evaluatedFlag === null) {
+    if (
+      this.hasAnyKey(createPatientInstrumentDto, ['evaluado', 'evaluated']) &&
+      evaluatedFlag === null
+    ) {
       throw new BadRequestException('El indicador de evaluación no es válido.');
     }
 
     let availability = this.normalizeAvailability(
-      (createPatientInstrumentDto as any).disponible ?? (createPatientInstrumentDto as any).available,
+      (createPatientInstrumentDto as any).disponible ??
+        (createPatientInstrumentDto as any).available,
     );
-    if (this.hasAnyKey(createPatientInstrumentDto, ['disponible', 'available']) && availability === null) {
-      throw new BadRequestException('El indicador de disponibilidad no es válido.');
+    if (
+      this.hasAnyKey(createPatientInstrumentDto, ['disponible', 'available']) &&
+      availability === null
+    ) {
+      throw new BadRequestException(
+        'El indicador de disponibilidad no es válido.',
+      );
     }
-    if (!this.hasAnyKey(createPatientInstrumentDto, ['disponible', 'available'])) {
+    if (
+      !this.hasAnyKey(createPatientInstrumentDto, ['disponible', 'available'])
+    ) {
       availability = '1';
     }
 
     const origin = this.toStringOrNull(
-      (createPatientInstrumentDto as any).origen ?? (createPatientInstrumentDto as any).origin,
+      (createPatientInstrumentDto as any).origen ??
+        (createPatientInstrumentDto as any).origin,
     );
     const userCreated = this.toStringOrNull(
-      (createPatientInstrumentDto as any).user_created ?? (createPatientInstrumentDto as any).userCreated,
+      (createPatientInstrumentDto as any).user_created ??
+        (createPatientInstrumentDto as any).userCreated,
     );
     const topics = this.serializeTopics(
-      (createPatientInstrumentDto as any).array_tema ?? (createPatientInstrumentDto as any).topics,
+      (createPatientInstrumentDto as any).array_tema ??
+        (createPatientInstrumentDto as any).topics,
     );
 
     const now = new Date();
@@ -142,10 +190,7 @@ export class PatientInstrumentsService {
 
   async findAll(): Promise<PatientInstrumentAssignment[]> {
     const records = await this.prisma.paciente_instrumento.findMany({
-      orderBy: [
-        { created_at: 'desc' },
-        { id: 'desc' },
-      ],
+      orderBy: [{ created_at: 'desc' }, { id: 'desc' }],
     });
 
     return this.mapAssignments(records);
@@ -164,17 +209,25 @@ export class PatientInstrumentsService {
     return assignment ?? null;
   }
 
-  async update(id: number, updatePatientInstrumentDto: UpdatePatientInstrumentDto): Promise<PatientInstrumentAssignment> {
-    const existing = await this.prisma.paciente_instrumento.findUnique({ where: { id } });
+  async update(
+    id: number,
+    updatePatientInstrumentDto: UpdatePatientInstrumentDto,
+  ): Promise<PatientInstrumentAssignment> {
+    const existing = await this.prisma.paciente_instrumento.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException('Asignación de instrumento no encontrada');
     }
 
     const data: Prisma.paciente_instrumentoUpdateInput = {};
 
-    if (this.hasAnyKey(updatePatientInstrumentDto, ['id_paciente', 'patientId'])) {
+    if (
+      this.hasAnyKey(updatePatientInstrumentDto, ['id_paciente', 'patientId'])
+    ) {
       const patientId = this.normalizeNumber(
-        (updatePatientInstrumentDto as any).id_paciente ?? (updatePatientInstrumentDto as any).patientId,
+        (updatePatientInstrumentDto as any).id_paciente ??
+          (updatePatientInstrumentDto as any).patientId,
       );
       if (patientId !== null) {
         await this.ensurePatientExists(patientId);
@@ -182,9 +235,15 @@ export class PatientInstrumentsService {
       data.id_paciente = patientId;
     }
 
-    if (this.hasAnyKey(updatePatientInstrumentDto, ['id_instrumento_tipo', 'instrumentTypeId'])) {
+    if (
+      this.hasAnyKey(updatePatientInstrumentDto, [
+        'id_instrumento_tipo',
+        'instrumentTypeId',
+      ])
+    ) {
       const instrumentTypeId = this.normalizeNumber(
-        (updatePatientInstrumentDto as any).id_instrumento_tipo ?? (updatePatientInstrumentDto as any).instrumentTypeId,
+        (updatePatientInstrumentDto as any).id_instrumento_tipo ??
+          (updatePatientInstrumentDto as any).instrumentTypeId,
       );
       if (instrumentTypeId === null) {
         throw new BadRequestException('El tipo de instrumento no es válido.');
@@ -193,16 +252,22 @@ export class PatientInstrumentsService {
       data.id_instrumento_tipo = instrumentTypeId;
     }
 
-    if (this.hasAnyKey(updatePatientInstrumentDto, ['fecha_instrumento', 'assignedAt'])) {
-      const rawAssignedAt = (updatePatientInstrumentDto as any).fecha_instrumento
-        ?? (updatePatientInstrumentDto as any).assignedAt;
+    if (
+      this.hasAnyKey(updatePatientInstrumentDto, [
+        'fecha_instrumento',
+        'assignedAt',
+      ])
+    ) {
+      const rawAssignedAt =
+        (updatePatientInstrumentDto as any).fecha_instrumento ??
+        (updatePatientInstrumentDto as any).assignedAt;
       const assignedAt = this.normalizeDate(rawAssignedAt);
 
       if (
-        assignedAt === null
-        && rawAssignedAt !== null
-        && rawAssignedAt !== undefined
-        && rawAssignedAt !== ''
+        assignedAt === null &&
+        rawAssignedAt !== null &&
+        rawAssignedAt !== undefined &&
+        rawAssignedAt !== ''
       ) {
         throw new BadRequestException('La fecha de asignación no es válida.');
       }
@@ -210,16 +275,19 @@ export class PatientInstrumentsService {
       data.fecha_instrumento = assignedAt;
     }
 
-    if (this.hasAnyKey(updatePatientInstrumentDto, ['valido_hasta', 'validUntil'])) {
-      const rawValidUntil = (updatePatientInstrumentDto as any).valido_hasta
-        ?? (updatePatientInstrumentDto as any).validUntil;
+    if (
+      this.hasAnyKey(updatePatientInstrumentDto, ['valido_hasta', 'validUntil'])
+    ) {
+      const rawValidUntil =
+        (updatePatientInstrumentDto as any).valido_hasta ??
+        (updatePatientInstrumentDto as any).validUntil;
       const validUntil = this.normalizeDate(rawValidUntil);
 
       if (
-        validUntil === null
-        && rawValidUntil !== null
-        && rawValidUntil !== undefined
-        && rawValidUntil !== ''
+        validUntil === null &&
+        rawValidUntil !== null &&
+        rawValidUntil !== undefined &&
+        rawValidUntil !== ''
       ) {
         throw new BadRequestException('La fecha de vencimiento no es válida.');
       }
@@ -227,9 +295,12 @@ export class PatientInstrumentsService {
       data.valido_hasta = validUntil;
     }
 
-    if (this.hasAnyKey(updatePatientInstrumentDto, ['completado', 'completed'])) {
+    if (
+      this.hasAnyKey(updatePatientInstrumentDto, ['completado', 'completed'])
+    ) {
       const completedFlag = this.normalizeBoolean(
-        (updatePatientInstrumentDto as any).completado ?? (updatePatientInstrumentDto as any).completed,
+        (updatePatientInstrumentDto as any).completado ??
+          (updatePatientInstrumentDto as any).completed,
       );
       if (completedFlag === null) {
         data.completado = null;
@@ -240,7 +311,8 @@ export class PatientInstrumentsService {
 
     if (this.hasAnyKey(updatePatientInstrumentDto, ['evaluado', 'evaluated'])) {
       const evaluatedFlag = this.normalizeBoolean(
-        (updatePatientInstrumentDto as any).evaluado ?? (updatePatientInstrumentDto as any).evaluated,
+        (updatePatientInstrumentDto as any).evaluado ??
+          (updatePatientInstrumentDto as any).evaluated,
       );
       if (evaluatedFlag === null) {
         data.evaluado = null;
@@ -249,9 +321,12 @@ export class PatientInstrumentsService {
       }
     }
 
-    if (this.hasAnyKey(updatePatientInstrumentDto, ['disponible', 'available'])) {
+    if (
+      this.hasAnyKey(updatePatientInstrumentDto, ['disponible', 'available'])
+    ) {
       const availability = this.normalizeAvailability(
-        (updatePatientInstrumentDto as any).disponible ?? (updatePatientInstrumentDto as any).available,
+        (updatePatientInstrumentDto as any).disponible ??
+          (updatePatientInstrumentDto as any).available,
       );
       if (availability === null) {
         data.disponible = null;
@@ -262,25 +337,34 @@ export class PatientInstrumentsService {
 
     if (this.hasAnyKey(updatePatientInstrumentDto, ['origen', 'origin'])) {
       data.origen = this.toStringOrNull(
-        (updatePatientInstrumentDto as any).origen ?? (updatePatientInstrumentDto as any).origin,
+        (updatePatientInstrumentDto as any).origen ??
+          (updatePatientInstrumentDto as any).origin,
       );
     }
 
-    if (this.hasAnyKey(updatePatientInstrumentDto, ['user_created', 'userCreated'])) {
+    if (
+      this.hasAnyKey(updatePatientInstrumentDto, [
+        'user_created',
+        'userCreated',
+      ])
+    ) {
       data.user_created = this.toStringOrNull(
-        (updatePatientInstrumentDto as any).user_created ?? (updatePatientInstrumentDto as any).userCreated,
+        (updatePatientInstrumentDto as any).user_created ??
+          (updatePatientInstrumentDto as any).userCreated,
       );
     }
 
     if (this.hasAnyKey(updatePatientInstrumentDto, ['array_tema', 'topics'])) {
       data.array_tema = this.serializeTopics(
-        (updatePatientInstrumentDto as any).array_tema ?? (updatePatientInstrumentDto as any).topics,
+        (updatePatientInstrumentDto as any).array_tema ??
+          (updatePatientInstrumentDto as any).topics,
       );
     }
 
     if (this.hasAnyKey(updatePatientInstrumentDto, ['id_cinta', 'ribbonId'])) {
       const ribbonId = this.normalizeNumber(
-        (updatePatientInstrumentDto as any).id_cinta ?? (updatePatientInstrumentDto as any).ribbonId,
+        (updatePatientInstrumentDto as any).id_cinta ??
+          (updatePatientInstrumentDto as any).ribbonId,
       );
       if (ribbonId !== null) {
         await this.ensureRibbonExists(ribbonId);
@@ -305,20 +389,26 @@ export class PatientInstrumentsService {
   }
 
   async remove(id: number): Promise<{ deleted: boolean }> {
-    const existing = await this.prisma.paciente_instrumento.findUnique({ where: { id } });
+    const existing = await this.prisma.paciente_instrumento.findUnique({
+      where: { id },
+    });
     if (!existing) {
       throw new NotFoundException('Asignación de instrumento no encontrada');
     }
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.paciente_instrumento_respuesta.deleteMany({ where: { id_paciente_instrumento: id } });
+      await tx.paciente_instrumento_respuesta.deleteMany({
+        where: { id_paciente_instrumento: id },
+      });
       await tx.paciente_instrumento.delete({ where: { id } });
     });
 
     return { deleted: true };
   }
 
-  async findByPatient(patientId: number): Promise<PatientInstrumentAssignment[]> {
+  async findByPatient(
+    patientId: number,
+  ): Promise<PatientInstrumentAssignment[]> {
     await this.ensurePatientExists(patientId);
 
     const records = await this.prisma.paciente_instrumento.findMany({
@@ -338,27 +428,29 @@ export class PatientInstrumentsService {
     return this.findByPatient(patientId);
   }
 
-  async findResponsesByPatient(patientId: number): Promise<PatientInstrumentResponse[]> {
+  async findResponsesByPatient(
+    patientId: number,
+  ): Promise<PatientInstrumentResponse[]> {
     await this.ensurePatientExists(patientId);
 
     const records = await this.prisma.paciente_instrumento_respuesta.findMany({
       where: { id_paciente: patientId },
-      orderBy: [
-        { fecha: 'desc' },
-        { created_at: 'desc' },
-        { id: 'desc' },
-      ],
+      orderBy: [{ fecha: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
     });
 
     return this.mapInstrumentResponses(records);
   }
 
-  async findResponsesByUser(userId: number): Promise<PatientInstrumentResponse[]> {
+  async findResponsesByUser(
+    userId: number,
+  ): Promise<PatientInstrumentResponse[]> {
     const patientId = await this.resolvePatientIdByUser(userId);
     return this.findResponsesByPatient(patientId);
   }
 
-  async findAggregatedResultsByPatient(patientId: number): Promise<PatientAggregatedResults> {
+  async findAggregatedResultsByPatient(
+    patientId: number,
+  ): Promise<PatientAggregatedResults> {
     await this.ensurePatientExists(patientId);
 
     const patient = await this.prisma.paciente.findUnique({
@@ -382,7 +474,14 @@ export class PatientInstrumentsService {
     });
     const dailyInstrumentId = dailyInstrument?.id ?? null;
 
-    const strengthsRaw = await this.prisma.$queryRaw<Array<{ tema: string | null; id_tema: number | null; suma: number | null; cantidad: number | null }>>`
+    const strengthsRaw = await this.prisma.$queryRaw<
+      Array<{
+        tema: string | null;
+        id_tema: number | null;
+        suma: number | null;
+        cantidad: number | null;
+      }>
+    >`
       SELECT
         tema,
         id_tema,
@@ -420,7 +519,9 @@ export class PatientInstrumentsService {
 
     const attitudinalSummary = buildAttitudinalSummary(strengths);
 
-    const diagnosticsRaw = await this.prisma.$queryRaw<Array<{ topico: string | null; id: number | null; suma: number | null }>>`
+    const diagnosticsRaw = await this.prisma.$queryRaw<
+      Array<{ topico: string | null; id: number | null; suma: number | null }>
+    >`
       SELECT
         t.nombre AS topico,
         t.id AS id,
@@ -435,7 +536,11 @@ export class PatientInstrumentsService {
     `;
 
     const diagnostics: HealthDiagnosticResult[] = diagnosticsRaw.map((row) => {
-      const result = diagnosticoSalud(row.id ?? null, row.topico ?? null, this.toNumeric(row.suma));
+      const result = diagnosticoSalud(
+        row.id ?? null,
+        row.topico ?? null,
+        this.toNumeric(row.suma),
+      );
       return {
         ...result,
         diagnostic: row.topico ?? result.diagnostic,
@@ -443,7 +548,11 @@ export class PatientInstrumentsService {
       } satisfies HealthDiagnosticResult;
     });
 
-    const stressSum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-estres', evaluado: 0 });
+    const stressSum = await this.sumNumericResponses({
+      id_paciente: patientId,
+      tipo_instrumento: 'test-estres',
+      evaluado: 0,
+    });
     const healthSum = await this.sumNumericResponses(
       {
         id_paciente: patientId,
@@ -453,17 +562,42 @@ export class PatientInstrumentsService {
       },
       { min: 0, max: 100 },
     );
-    const biologicalAgeSum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-biologica', evaluado: 0 });
-    const codependencySum = await this.sumNumericResponses({ id_paciente: patientId, tipo_instrumento: 'test-codependencia', evaluado: 0 });
+    const biologicalAgeSum = await this.sumNumericResponses({
+      id_paciente: patientId,
+      tipo_instrumento: 'test-biologica',
+      evaluado: 0,
+    });
+    const codependencySum = await this.sumNumericResponses({
+      id_paciente: patientId,
+      tipo_instrumento: 'test-codependencia',
+      evaluado: 0,
+    });
 
     const tests: Record<string, TestResult | null> = {
-      stress: stressSum !== null ? resultadoTest({ edad: patientAge, test: 'estres', valor: stressSum }) : null,
-      health: healthSum !== null ? resultadoTest({ edad: patientAge, test: 'salud', valor: healthSum }) : null,
+      stress:
+        stressSum !== null
+          ? resultadoTest({
+              edad: patientAge,
+              test: 'estres',
+              valor: stressSum,
+            })
+          : null,
+      health:
+        healthSum !== null
+          ? resultadoTest({ edad: patientAge, test: 'salud', valor: healthSum })
+          : null,
       biologicalAge:
         biologicalAgeSum !== null
-          ? resultadoTest({ edad: patientAge, test: 'edad-biologica', valor: biologicalAgeSum })
+          ? resultadoTest({
+              edad: patientAge,
+              test: 'edad-biologica',
+              valor: biologicalAgeSum,
+            })
           : null,
-      codependency: codependencySum !== null ? buildCodependencyResult(codependencySum) : null,
+      codependency:
+        codependencySum !== null
+          ? buildCodependencyResult(codependencySum)
+          : null,
     };
 
     const wheelOfLifeRaw = await this.prisma.$queryRaw<
@@ -515,7 +649,11 @@ export class PatientInstrumentsService {
     });
 
     const regiflexRaw = await this.prisma.$queryRaw<
-      Array<{ respuesta: string | null; topico: string | null; suma: number | null }>
+      Array<{
+        respuesta: string | null;
+        topico: string | null;
+        suma: number | null;
+      }>
     >`
       SELECT
         p.respuesta,
@@ -543,12 +681,15 @@ export class PatientInstrumentsService {
       return acc;
     }, []);
 
-    const regiflexPredominant = regiflexEntries.reduce<RegiflexEntry | null>((carry, current) => {
-      if (!carry || current.sum > carry.sum) {
-        return current;
-      }
-      return carry;
-    }, null);
+    const regiflexPredominant = regiflexEntries.reduce<RegiflexEntry | null>(
+      (carry, current) => {
+        if (!carry || current.sum > carry.sum) {
+          return current;
+        }
+        return carry;
+      },
+      null,
+    );
 
     const regiflex: RegiflexResult | null = regiflexEntries.length
       ? {
@@ -559,7 +700,11 @@ export class PatientInstrumentsService {
 
     const dailyRaw = dailyInstrumentId
       ? await this.prisma.$queryRaw<
-          Array<{ id_topico: number | null; topico: string | null; promedio: number | null }>
+          Array<{
+            id_topico: number | null;
+            topico: string | null;
+            promedio: number | null;
+          }>
         >`
           SELECT
             t.id AS id_topico,
@@ -605,7 +750,9 @@ export class PatientInstrumentsService {
     } satisfies PatientAggregatedResults;
   }
 
-  async findAggregatedResultsByUser(userId: number): Promise<PatientAggregatedResults> {
+  async findAggregatedResultsByUser(
+    userId: number,
+  ): Promise<PatientAggregatedResults> {
     const patientId = await this.resolvePatientIdByUser(userId);
     return this.findAggregatedResultsByPatient(patientId);
   }
@@ -614,22 +761,29 @@ export class PatientInstrumentsService {
     patientInstrumentId: number,
     dto: SubmitPatientInstrumentResponseDto,
   ): Promise<PatientInstrumentResponse[]> {
-    const assignment = await this.prisma.paciente_instrumento.findUnique({ where: { id: patientInstrumentId } });
+    const assignment = await this.prisma.paciente_instrumento.findUnique({
+      where: { id: patientInstrumentId },
+    });
 
     if (!assignment) {
       throw new NotFoundException('Asignación de instrumento no encontrada');
     }
 
     if (!dto.answers || dto.answers.length === 0) {
-      throw new BadRequestException('Se requiere al menos una respuesta para guardar el instrumento');
+      throw new BadRequestException(
+        'Se requiere al menos una respuesta para guardar el instrumento',
+      );
     }
 
     const resolvedPatientId = assignment.id_paciente ?? dto.patientId ?? null;
     if (!resolvedPatientId) {
-      throw new BadRequestException('No se pudo determinar el paciente asociado a la asignación.');
+      throw new BadRequestException(
+        'No se pudo determinar el paciente asociado a la asignación.',
+      );
     }
 
-    const resolvedInstrumentTypeId = assignment.id_instrumento_tipo ?? dto.instrumentTypeId ?? null;
+    const resolvedInstrumentTypeId =
+      assignment.id_instrumento_tipo ?? dto.instrumentTypeId ?? null;
     const resolvedInstrumentId = dto.instrumentId ?? null;
     const now = new Date();
 
@@ -658,25 +812,27 @@ export class PatientInstrumentsService {
         await tx.paciente_instrumento_respuesta.createMany({ data: rows });
       }
 
-      const shouldMarkCompleted = dto.saveOnly ? false : dto.markAsCompleted !== false;
+      const shouldMarkCompleted = dto.saveOnly
+        ? false
+        : dto.markAsCompleted !== false;
 
       await tx.paciente_instrumento.update({
         where: { id: patientInstrumentId },
         data: {
-          completado: shouldMarkCompleted ? 1 : assignment.completado ?? 0,
+          completado: shouldMarkCompleted ? 1 : (assignment.completado ?? 0),
           updated_at: now,
-          disponible: shouldMarkCompleted ? '0' : assignment.disponible ?? null,
+          disponible: shouldMarkCompleted
+            ? '0'
+            : (assignment.disponible ?? null),
         },
       });
     });
 
-    const savedRecords = await this.prisma.paciente_instrumento_respuesta.findMany({
-      where: { id_paciente_instrumento: patientInstrumentId },
-      orderBy: [
-        { orden: 'asc' },
-        { id: 'asc' },
-      ],
-    });
+    const savedRecords =
+      await this.prisma.paciente_instrumento_respuesta.findMany({
+        where: { id_paciente_instrumento: patientInstrumentId },
+        orderBy: [{ orden: 'asc' }, { id: 'asc' }],
+      });
 
     return this.mapInstrumentResponses(savedRecords);
   }
@@ -692,7 +848,9 @@ export class PatientInstrumentsService {
     }
   }
 
-  private async ensureInstrumentTypeExists(instrumentTypeId: number): Promise<void> {
+  private async ensureInstrumentTypeExists(
+    instrumentTypeId: number,
+  ): Promise<void> {
     const instrumentType = await this.prisma.instrumento_tipo.findUnique({
       where: { id: instrumentTypeId },
       select: { id: true },
@@ -719,7 +877,9 @@ export class PatientInstrumentsService {
       return false;
     }
 
-    return keys.some((key) => Object.prototype.hasOwnProperty.call(source, key));
+    return keys.some((key) =>
+      Object.prototype.hasOwnProperty.call(source, key),
+    );
   }
 
   private normalizeNumber(value: unknown): number | null {
@@ -812,13 +972,17 @@ export class PatientInstrumentsService {
     });
 
     if (!patient) {
-      throw new NotFoundException('Paciente no encontrado para el usuario proporcionado');
+      throw new NotFoundException(
+        'Paciente no encontrado para el usuario proporcionado',
+      );
     }
 
     return patient.id;
   }
 
-  private async mapAssignments(records: paciente_instrumento[]): Promise<PatientInstrumentAssignment[]> {
+  private async mapAssignments(
+    records: paciente_instrumento[],
+  ): Promise<PatientInstrumentAssignment[]> {
     if (!records.length) {
       return [];
     }
@@ -842,13 +1006,19 @@ export class PatientInstrumentsService {
         })
       : [];
 
-    const instrumentTypeMap = new Map<number, { nombre: string | null; descripcion: string | null }>(
-      instrumentTypes.map((type) => [type.id, { nombre: type.nombre ?? null, descripcion: type.descripcion ?? null }]),
+    const instrumentTypeMap = new Map<
+      number,
+      { nombre: string | null; descripcion: string | null }
+    >(
+      instrumentTypes.map((type) => [
+        type.id,
+        { nombre: type.nombre ?? null, descripcion: type.descripcion ?? null },
+      ]),
     );
 
     return records.map<PatientInstrumentAssignment>((record) => {
       const typeInfo = record.id_instrumento_tipo
-        ? instrumentTypeMap.get(record.id_instrumento_tipo) ?? null
+        ? (instrumentTypeMap.get(record.id_instrumento_tipo) ?? null)
         : null;
 
       return {
@@ -857,7 +1027,8 @@ export class PatientInstrumentsService {
         instrumentTypeId: record.id_instrumento_tipo ?? null,
         instrumentTypeName: typeInfo?.nombre ?? null,
         instrumentTypeDescription: typeInfo?.descripcion ?? null,
-        assignedAt: this.toIso(record.fecha_instrumento) ?? this.toIso(record.created_at),
+        assignedAt:
+          this.toIso(record.fecha_instrumento) ?? this.toIso(record.created_at),
         createdAt: this.toIso(record.created_at),
         updatedAt: this.toIso(record.updated_at),
         validUntil: this.toIso(record.valido_hasta),
@@ -885,9 +1056,24 @@ export class PatientInstrumentsService {
     overrideTopic: string | null;
     instrumentTypeName: string | null;
   }): Prisma.paciente_instrumento_respuestaCreateManyInput {
-    const { answer, assignment, patientId, instrumentId, instrumentTypeId, fallbackOrder, timestamp, saveOnly, overrideTheme, overrideTopic, instrumentTypeName } = params;
+    const {
+      answer,
+      assignment,
+      patientId,
+      instrumentId,
+      instrumentTypeId,
+      fallbackOrder,
+      timestamp,
+      saveOnly,
+      overrideTheme,
+      overrideTopic,
+      instrumentTypeName,
+    } = params;
 
-    const value = this.stringifyAnswer(answer.value ?? answer.rawValue ?? null, answer.selections);
+    const value = this.stringifyAnswer(
+      answer.value ?? answer.rawValue ?? null,
+      answer.selections,
+    );
     const label = this.stringifyAnswer(answer.label ?? null, answer.selections);
 
     if (!value && !label) {
@@ -896,7 +1082,10 @@ export class PatientInstrumentsService {
 
     const questionId = this.normalizeQuestionId(answer.questionId);
     const questionText = this.toStringOrNull(answer.questionText);
-    const order = typeof answer.order === 'number' && Number.isFinite(answer.order) ? answer.order : fallbackOrder;
+    const order =
+      typeof answer.order === 'number' && Number.isFinite(answer.order)
+        ? answer.order
+        : fallbackOrder;
 
     return {
       id_paciente: patientId,
@@ -921,7 +1110,10 @@ export class PatientInstrumentsService {
     };
   }
 
-  private stringifyAnswer(value?: string | null, selections?: string[] | null): string | null {
+  private stringifyAnswer(
+    value?: string | null,
+    selections?: string[] | null,
+  ): string | null {
     if (Array.isArray(selections) && selections.length) {
       const normalizedSelections = selections
         .map((item) => this.toStringOrNull(item))
@@ -949,7 +1141,9 @@ export class PatientInstrumentsService {
     return Number.isFinite(numeric) ? numeric : null;
   }
 
-  private mapInstrumentResponses(records: paciente_instrumento_respuesta[]): PatientInstrumentResponse[] {
+  private mapInstrumentResponses(
+    records: paciente_instrumento_respuesta[],
+  ): PatientInstrumentResponse[] {
     if (!records.length) {
       return [];
     }
@@ -1029,7 +1223,10 @@ export class PatientInstrumentsService {
     let age = today.getFullYear() - birthDate.getFullYear();
     const monthDiff = today.getMonth() - birthDate.getMonth();
 
-    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+    if (
+      monthDiff < 0 ||
+      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+    ) {
       age -= 1;
     }
 
@@ -1145,7 +1342,9 @@ export class PatientInstrumentsService {
       const parsed = JSON.parse(trimmed);
       if (Array.isArray(parsed)) {
         return parsed
-          .map((item) => (item === null || item === undefined ? null : item.toString().trim()))
+          .map((item) =>
+            item === null || item === undefined ? null : item.toString().trim(),
+          )
           .filter((item): item is string => Boolean(item));
       }
     } catch {

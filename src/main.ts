@@ -11,10 +11,15 @@ async function bootstrap() {
       'http://127.0.0.1:5173',
       'http://127.0.0.1:5174',
       'http://localhost:4173',
-      'https://demo-holistico-hoffman.vercel.app'
+      'https://demo-holistico-hoffman.vercel.app',
     ],
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'X-Requested-With'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'X-Requested-With',
+    ],
     credentials: true,
   });
   await app.listen(process.env.PORT ?? 3000);

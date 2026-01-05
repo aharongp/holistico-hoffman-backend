@@ -111,7 +111,11 @@ export const ponderacion = (valor: number | null): PonderacionResult => {
   };
 };
 
-export const resultadoTest = ({ edad, test, valor }: ResultadoTestParams): TestResult => {
+export const resultadoTest = ({
+  edad,
+  test,
+  valor,
+}: ResultadoTestParams): TestResult => {
   const total = clamp(toNumber(valor), 0, 9999);
   const age = edad !== null && edad !== undefined ? toNumber(edad) : null;
 
@@ -124,22 +128,26 @@ export const resultadoTest = ({ edad, test, valor }: ResultadoTestParams): TestR
     case 'estres':
       if (total >= 0 && total <= 14) {
         nivel = 'Nivel bajo';
-        enunciado = 'Esta en control de su vida y sus circunstancias, posee buena adaptabilidad y resistencia ante las situaciones frustrantes';
+        enunciado =
+          'Esta en control de su vida y sus circunstancias, posee buena adaptabilidad y resistencia ante las situaciones frustrantes';
         colorTexto = 'text-success';
         icono = 'fa fa-thumbs-o-up';
       } else if (total >= 15 && total <= 36) {
         nivel = 'Nivel alto';
-        enunciado = 'Le faltan recursos para el manejo del estrés, tiene baja resistencia y poca adaptabilidad, tenga cuidado con las situaciones estresantes y dedique un tiempo cada día para desarrollar sus habilidades y destrezas para el control del estrés';
+        enunciado =
+          'Le faltan recursos para el manejo del estrés, tiene baja resistencia y poca adaptabilidad, tenga cuidado con las situaciones estresantes y dedique un tiempo cada día para desarrollar sus habilidades y destrezas para el control del estrés';
         colorTexto = 'text-warning';
         icono = 'fa fa-meh-o';
       } else if (total >= 37 && total <= 59) {
         nivel = 'Nivel elevado';
-        enunciado = 'Necesita ayuda, está presentando síntomas de distrés, requiere de un mayor descanso, y de las técnicas para el manejo del estrés efectivas (terapias, ejercicios, meditación, medicación, entre otros)';
+        enunciado =
+          'Necesita ayuda, está presentando síntomas de distrés, requiere de un mayor descanso, y de las técnicas para el manejo del estrés efectivas (terapias, ejercicios, meditación, medicación, entre otros)';
         colorTexto = 'text-warning';
         icono = 'fa fa-frown-o';
       } else if (total >= 60 && total <= 84) {
         nivel = 'Nivel patologico';
-        enunciado = 'Requiere de adaptación profesional, esta enfermo y su condición va a agravar si no se atiende de inmediato.';
+        enunciado =
+          'Requiere de adaptación profesional, esta enfermo y su condición va a agravar si no se atiende de inmediato.';
         colorTexto = 'text-danger';
         icono = 'fa fa-smile-o';
       }
@@ -155,12 +163,14 @@ export const resultadoTest = ({ edad, test, valor }: ResultadoTestParams): TestR
             icono = 'fa fa-frown-o';
           } else if (total >= 71 && total <= 99) {
             nivel = 'NO ESTA BIEN';
-            enunciado = '...hay que tomar medidas para corregir sus desequilibrios y excesos.';
+            enunciado =
+              '...hay que tomar medidas para corregir sus desequilibrios y excesos.';
             colorTexto = 'text-warning';
             icono = 'fa fa-frown-o';
           } else if (total >= 51 && total <= 70) {
             nivel = 'ESTA BIEN';
-            enunciado = '...por ahora, pero debe corregirse y madurar, no puede seguir así. CUIDADO.';
+            enunciado =
+              '...por ahora, pero debe corregirse y madurar, no puede seguir así. CUIDADO.';
             colorTexto = 'text-success';
             icono = 'fa fa-frown-o';
           } else if (total >= 0 && total <= 50) {
@@ -182,7 +192,8 @@ export const resultadoTest = ({ edad, test, valor }: ResultadoTestParams): TestR
             icono = 'fa fa-frown-o';
           } else if (total >= 41 && total <= 55) {
             nivel = 'ESTA BIEN';
-            enunciado = '…pero la juventud no le asiste, tiene que cuidarse más.';
+            enunciado =
+              '…pero la juventud no le asiste, tiene que cuidarse más.';
             colorTexto = 'text-success';
             icono = 'fa fa-smiles-o';
           } else if (total >= 0 && total <= 40) {
@@ -204,7 +215,8 @@ export const resultadoTest = ({ edad, test, valor }: ResultadoTestParams): TestR
             icono = 'fa fa-frown-o';
           } else if (total >= 31 && total <= 45) {
             nivel = 'ESTA BIEN';
-            enunciado = '…pero debe proceder a adaptarse a las necesidades de esta nueva etapa de vida.';
+            enunciado =
+              '…pero debe proceder a adaptarse a las necesidades de esta nueva etapa de vida.';
             colorTexto = 'text-success';
             icono = 'fa fa-smile-o';
           } else if (total >= 0 && total <= 30) {
@@ -388,8 +400,7 @@ export const buildCodependencyResult = (valor: MaybeNumber): TestResult => {
   if (total < 66.67) {
     return {
       nivel: 'Tendencia moderada',
-      enunciado:
-        `${total} CUIDADO estas presentando algunos síntomas evidentes de comportamientos compulsivos múltiples que se pueden acentuar o agravar si no los identificas y los corriges cuanto antes.`,
+      enunciado: `${total} CUIDADO estas presentando algunos síntomas evidentes de comportamientos compulsivos múltiples que se pueden acentuar o agravar si no los identificas y los corriges cuanto antes.`,
       colorTexto: 'text-warning',
       icono: 'fa fa-meh-o',
       total,
@@ -471,7 +482,8 @@ export const diagnosticoSalud = (
         colorTexto = 'text-danger';
         icono = 'fa fa-frown-o';
       } else if (total < 29) {
-        enunciado = 'Desbe corregir algunos aspectos de su vida para evitar las adicciones';
+        enunciado =
+          'Desbe corregir algunos aspectos de su vida para evitar las adicciones';
         colorTexto = 'text-warning';
         icono = 'fa fa-smile-o';
       } else if (total > 28) {
@@ -783,7 +795,10 @@ export const diagnosticoSalud = (
   };
 };
 
-export const revistaDiaria = (valor: MaybeNumber, idTopico: number | null): DailyReviewResult => {
+export const revistaDiaria = (
+  valor: MaybeNumber,
+  idTopico: number | null,
+): DailyReviewResult => {
   const total = toNumber(valor);
   const id = idTopico ?? null;
 
@@ -914,12 +929,15 @@ export const revistaDiaria = (valor: MaybeNumber, idTopico: number | null): Dail
   };
 };
 
-export const buildAttitudinalSummary = (strengths: AttitudinalStrengthResult[]): AttitudinalSummary | null => {
+export const buildAttitudinalSummary = (
+  strengths: AttitudinalStrengthResult[],
+): AttitudinalSummary | null => {
   if (!strengths.length) {
     return null;
   }
 
-  const totalAverage = strengths.reduce((acc, item) => acc + item.average, 0) / strengths.length;
+  const totalAverage =
+    strengths.reduce((acc, item) => acc + item.average, 0) / strengths.length;
   const percentage = clamp(totalAverage * 20, 0, 100);
   const colorClass = colorValor(totalAverage);
   const ponderacionResult = ponderacion(percentage);

@@ -63,7 +63,7 @@ export class TopicsService {
         updated_at: true,
       },
     });
-    return rows.map(r => ({
+    return rows.map((r) => ({
       id: r.id,
       nombre: r.nombre ?? null,
       descripcion: r.descripcion ?? null,
@@ -102,7 +102,10 @@ export class TopicsService {
     };
   }
 
-  async update(id: number, updateTopicDto: UpdateTopicDto): Promise<PublicTopic | null> {
+  async update(
+    id: number,
+    updateTopicDto: UpdateTopicDto,
+  ): Promise<PublicTopic | null> {
     const updated = await this.prisma.tema.update({
       where: { id },
       data: {

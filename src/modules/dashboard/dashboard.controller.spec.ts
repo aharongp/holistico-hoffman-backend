@@ -60,13 +60,17 @@ describe('DashboardController', () => {
   it('should return total instruments', async () => {
     service.getInstrumentCount.mockResolvedValueOnce(12);
 
-    await expect(controller.getTotalInstruments()).resolves.toEqual({ total: 12 });
+    await expect(controller.getTotalInstruments()).resolves.toEqual({
+      total: 12,
+    });
   });
 
   it('should return gender distribution payload', async () => {
     const items = [{ gender: 'Femenino', count: 4, percentage: 50 }];
     service.getPatientGenderDistribution.mockResolvedValueOnce(items as any);
 
-    await expect(controller.getGenderDistribution()).resolves.toEqual({ data: items });
+    await expect(controller.getGenderDistribution()).resolves.toEqual({
+      data: items,
+    });
   });
 });

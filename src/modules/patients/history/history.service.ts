@@ -1,17 +1,38 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
 import { createReadStream, existsSync } from 'node:fs';
 import { mkdir, writeFile } from 'node:fs/promises';
 import type { ReadStream } from 'node:fs';
 import { basename, dirname, extname, join, relative, resolve } from 'node:path';
-import { Prisma, paciente, paciente_antecedente } from '@prisma/client';
+import {
+  Prisma,
+  paciente,
+  paciente_antecedente,
+  paciente_examen_dental,
+  paciente_examen_dental_presentes,
+  paciente_examen_ocular,
+} from '@prisma/client';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateHistoryDto } from './dto/update-history.dto';
 import {
+  DENTAL_EXAM_PRESENCE_FIELDS,
+  DENTAL_EXAM_STRING_FIELDS,
+  UpsertPatientDentalExamDto,
+  UpsertPatientDentalPresenceDto,
+  UpsertPatientOcularExamDto,
+} from './dto/manage-dental-exams.dto';
+import {
+  PatientDentalExam,
+  PatientDentalPresenceExam,
   PatientClinicalBackgroundHistory,
   PatientCoachConsultation,
   PatientContactHistory,
   PatientDiseaseHistoryEntry,
+  PatientOcularExam,
   PatientFamilyHistory,
   PatientGynecologicalHistory,
   PatientImmunizationHistory,
@@ -215,8 +236,12 @@ export class HistoryService {
     return this.prisma.paciente.findFirst({ where: { id_usuario: userId } });
   }
 
-  private async loadAntecedent(patientId: number): Promise<paciente_antecedente | null> {
-    return this.prisma.paciente_antecedente.findFirst({ where: { id_paciente: patientId } });
+  private async loadAntecedent(
+    patientId: number,
+  ): Promise<paciente_antecedente | null> {
+    return this.prisma.paciente_antecedente.findFirst({
+      where: { id_paciente: patientId },
+    });
   }
 
   private sanitizeString(value: unknown): string | null {
@@ -310,7 +335,12 @@ export class HistoryService {
       if (trimmed === '') {
         return null;
       }
-      if (trimmed === '1' || trimmed === 'true' || trimmed === 'yes' || trimmed === 'si') {
+      if (
+        trimmed === '1' ||
+        trimmed === 'true' ||
+        trimmed === 'yes' ||
+        trimmed === 'si'
+      ) {
         return 1;
       }
       if (trimmed === '0' || trimmed === 'false' || trimmed === 'no') {
@@ -321,11 +351,117 @@ export class HistoryService {
     return null;
   }
 
+  private sanitizePresenceFlag(value: unknown): number | null {
+    return this.sanitizeImmunizationValue(value);
+  }
+
   private hasData(data: Record<string, unknown>): boolean {
     return Object.keys(data).length > 0;
   }
 
-  private getDiseaseLabelFromKey(normalizedKey: string, fallbackLabel?: string | null): string {
+  private matchesPatientId(recordPatient: unknown, patientId: number): boolean {
+    if (recordPatient === null || recordPatient === undefined) {
+      return false;
+    }
+
+    if (typeof recordPatient === 'number' && Number.isFinite(recordPatient)) {
+      return recordPatient === patientId;
+    }
+
+    const numeric = Number(String(recordPatient).trim());
+    return Number.isFinite(numeric) && numeric === patientId;
+  }
+
+  private buildDentalExamData(
+    payload: UpsertPatientDentalExamDto | undefined,
+  ): Record<string, string | null> {
+    const data: Record<string, string | null> = {};
+
+    if (!payload) {
+      return data;
+    }
+
+    const source = payload as Record<string, unknown>;
+
+    DENTAL_EXAM_STRING_FIELDS.forEach((field) => {
+      if (field in source) {
+        data[field] = this.sanitizeString(source[field]);
+      }
+    });
+
+    return data;
+  }
+
+  private buildDentalPresenceData(
+    payload: UpsertPatientDentalPresenceDto | undefined,
+  ): Record<string, number | null> {
+    const data: Record<string, number | null> = {};
+
+    if (!payload) {
+      return data;
+    }
+
+    const source = payload as Record<string, unknown>;
+
+    DENTAL_EXAM_PRESENCE_FIELDS.forEach((field) => {
+      if (field in source) {
+        data[field] = this.sanitizePresenceFlag(source[field]);
+      }
+    });
+
+    return data;
+  }
+
+  private buildOcularExamData(
+    payload: UpsertPatientOcularExamDto | undefined,
+  ): Record<string, unknown> {
+    const data: Record<string, unknown> = {};
+
+    if (!payload) {
+      return data;
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'fecha')) {
+      data.fecha = this.sanitizeDateValue(payload.fecha);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'motivo')) {
+      data.motivo = this.sanitizeString(payload.motivo);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'ojo_derecho')) {
+      data.ojo_derecho = this.sanitizeString(payload.ojo_derecho);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'observacion_derecho')) {
+      data.observacion_derecho = this.sanitizeString(
+        payload.observacion_derecho,
+      );
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'comentario')) {
+      data.comentario = this.sanitizeString(payload.comentario);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(payload, 'ojo_izquierdo')) {
+      data.ojo_izquierdo = this.sanitizeString(payload.ojo_izquierdo);
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(payload, 'observacion_izquierdo')
+    ) {
+      data.observacion_izquierdo = this.sanitizeString(
+        payload.observacion_izquierdo,
+      );
+    }
+
+    return data;
+  }
+
+  private getDiseaseLabelFromKey(
+    normalizedKey: string,
+    fallbackLabel?: string | null,
+  ): string {
     if (fallbackLabel) {
       const sanitized = this.sanitizeString(fallbackLabel);
       if (sanitized) {
@@ -336,7 +472,9 @@ export class HistoryService {
     return DISEASE_KEY_TO_LABEL[normalizedKey] ?? normalizedKey;
   }
 
-  private buildPatientUpdateData(payload: UpdateHistoryDto | undefined): Record<string, any> {
+  private buildPatientUpdateData(
+    payload: UpdateHistoryDto | undefined,
+  ): Record<string, any> {
     const data: Record<string, any> = {};
     if (!payload) {
       return data;
@@ -379,10 +517,14 @@ export class HistoryService {
         data.familiar_cercano = this.sanitizeString(contacts.closeFamily);
       }
       if (contacts.relationship !== undefined) {
-        data.familiar_cercano_parentesco = this.sanitizeString(contacts.relationship);
+        data.familiar_cercano_parentesco = this.sanitizeString(
+          contacts.relationship,
+        );
       }
       if (contacts.familyPhone !== undefined) {
-        data.familiar_cercano_telefono = this.sanitizeString(contacts.familyPhone);
+        data.familiar_cercano_telefono = this.sanitizeString(
+          contacts.familyPhone,
+        );
       }
       if (contacts.emergencyContact !== undefined) {
         data.contacto = this.sanitizeString(contacts.emergencyContact);
@@ -397,10 +539,14 @@ export class HistoryService {
 
     if (treatingDoctor) {
       if (treatingDoctor.treatingDoctor !== undefined) {
-        data.medico_tratante = this.sanitizeString(treatingDoctor.treatingDoctor);
+        data.medico_tratante = this.sanitizeString(
+          treatingDoctor.treatingDoctor,
+        );
       }
       if (treatingDoctor.specialty !== undefined) {
-        data.medico_tratante_especialidad = this.sanitizeString(treatingDoctor.specialty);
+        data.medico_tratante_especialidad = this.sanitizeString(
+          treatingDoctor.specialty,
+        );
       }
       if (treatingDoctor.currentMedication !== undefined) {
         data.medicacion = this.sanitizeString(treatingDoctor.currentMedication);
@@ -410,13 +556,21 @@ export class HistoryService {
     return data;
   }
 
-  private buildAntecedentData(payload: UpdateHistoryDto | undefined): Record<string, any> {
+  private buildAntecedentData(
+    payload: UpdateHistoryDto | undefined,
+  ): Record<string, any> {
     const data: Record<string, any> = {};
     if (!payload) {
       return data;
     }
 
-    const { family, immunizations, gynecological, lifestyle, clinicalBackground } = payload;
+    const {
+      family,
+      immunizations,
+      gynecological,
+      lifestyle,
+      clinicalBackground,
+    } = payload;
 
     if (family?.pathologies) {
       const { pathologies } = family;
@@ -448,7 +602,9 @@ export class HistoryService {
         data.enfermedad_sangre = this.sanitizeString(pathologies.bloodDisease);
       }
       if (pathologies.vascularDisease !== undefined) {
-        data.enfermedad_vasos = this.sanitizeString(pathologies.vascularDisease);
+        data.enfermedad_vasos = this.sanitizeString(
+          pathologies.vascularDisease,
+        );
       }
       if (pathologies.arthritis !== undefined) {
         data.artritis = this.sanitizeString(pathologies.arthritis);
@@ -509,28 +665,38 @@ export class HistoryService {
         data.colera = this.sanitizeImmunizationValue(immunizations.cholera);
       }
       if (immunizations.yellowFever !== undefined) {
-        data.fiebre_amarilla = this.sanitizeImmunizationValue(immunizations.yellowFever);
+        data.fiebre_amarilla = this.sanitizeImmunizationValue(
+          immunizations.yellowFever,
+        );
       }
       if (immunizations.otherImmunization !== undefined) {
-        data.otra_inmunizacion = this.sanitizeString(immunizations.otherImmunization);
+        data.otra_inmunizacion = this.sanitizeString(
+          immunizations.otherImmunization,
+        );
       }
     }
 
     if (gynecological) {
       if (gynecological.developmentAge !== undefined) {
-        data.edad_desarrollo = this.sanitizeString(gynecological.developmentAge);
+        data.edad_desarrollo = this.sanitizeString(
+          gynecological.developmentAge,
+        );
       }
       if (gynecological.menstruation !== undefined) {
         data.menstruacion = this.sanitizeString(gynecological.menstruation);
       }
       if (gynecological.menstrualCycle !== undefined) {
-        data.ciclo_menstrual = this.sanitizeString(gynecological.menstrualCycle);
+        data.ciclo_menstrual = this.sanitizeString(
+          gynecological.menstrualCycle,
+        );
       }
       if (gynecological.flow !== undefined) {
         data.flujo = this.sanitizeString(gynecological.flow);
       }
       if (gynecological.birthControlMethod !== undefined) {
-        data.metodo_control_natal = this.sanitizeString(gynecological.birthControlMethod);
+        data.metodo_control_natal = this.sanitizeString(
+          gynecological.birthControlMethod,
+        );
       }
       if (gynecological.pregnancies !== undefined) {
         data.numero_embarazo = this.sanitizeString(gynecological.pregnancies);
@@ -611,7 +777,9 @@ export class HistoryService {
 
     if (clinicalBackground) {
       if (clinicalBackground.otherDisease !== undefined) {
-        data.otra_enfermedad = this.sanitizeString(clinicalBackground.otherDisease);
+        data.otra_enfermedad = this.sanitizeString(
+          clinicalBackground.otherDisease,
+        );
       }
       if (clinicalBackground.surgeries !== undefined) {
         data.operacion = this.sanitizeString(clinicalBackground.surgeries);
@@ -626,10 +794,14 @@ export class HistoryService {
         data.alergia = this.sanitizeString(clinicalBackground.allergies);
       }
       if (clinicalBackground.currentIllness !== undefined) {
-        data.enfermedad_actual = this.sanitizeString(clinicalBackground.currentIllness);
+        data.enfermedad_actual = this.sanitizeString(
+          clinicalBackground.currentIllness,
+        );
       }
       if (clinicalBackground.otherAlteration !== undefined) {
-        data.otra_alteracion = this.sanitizeString(clinicalBackground.otherAlteration);
+        data.otra_alteracion = this.sanitizeString(
+          clinicalBackground.otherAlteration,
+        );
       }
       if (clinicalBackground.breathing !== undefined) {
         data.respiracion = this.sanitizeString(clinicalBackground.breathing);
@@ -641,7 +813,9 @@ export class HistoryService {
         data.aversion = this.sanitizeString(clinicalBackground.aversions);
       }
       if (clinicalBackground.intolerances !== undefined) {
-        data.intolerancia = this.sanitizeString(clinicalBackground.intolerances);
+        data.intolerancia = this.sanitizeString(
+          clinicalBackground.intolerances,
+        );
       }
       if (clinicalBackground.drinks !== undefined) {
         data.bebida = this.sanitizeString(clinicalBackground.drinks);
@@ -659,10 +833,14 @@ export class HistoryService {
         data.dormir = this.sanitizeString(clinicalBackground.sleep);
       }
       if (clinicalBackground.skinManifestation !== undefined) {
-        data.manifestacion_cutanea = this.sanitizeString(clinicalBackground.skinManifestation);
+        data.manifestacion_cutanea = this.sanitizeString(
+          clinicalBackground.skinManifestation,
+        );
       }
       if (clinicalBackground.sweatingTemperature !== undefined) {
-        data.sudoracion_temperatura = this.sanitizeString(clinicalBackground.sweatingTemperature);
+        data.sudoracion_temperatura = this.sanitizeString(
+          clinicalBackground.sweatingTemperature,
+        );
       }
       if (clinicalBackground.urination !== undefined) {
         data.miccion = this.sanitizeString(clinicalBackground.urination);
@@ -671,13 +849,19 @@ export class HistoryService {
         data.sexualidad = this.sanitizeString(clinicalBackground.sexuality);
       }
       if (clinicalBackground.psychiatricCondition !== undefined) {
-        data.condicion_psiquica = this.sanitizeString(clinicalBackground.psychiatricCondition);
+        data.condicion_psiquica = this.sanitizeString(
+          clinicalBackground.psychiatricCondition,
+        );
       }
       if (clinicalBackground.physicalCondition !== undefined) {
-        data.condicion_fisica = this.sanitizeString(clinicalBackground.physicalCondition);
+        data.condicion_fisica = this.sanitizeString(
+          clinicalBackground.physicalCondition,
+        );
       }
       if (clinicalBackground.bloodGroup !== undefined) {
-        data.grupo_sanguineo = this.sanitizeString(clinicalBackground.bloodGroup);
+        data.grupo_sanguineo = this.sanitizeString(
+          clinicalBackground.bloodGroup,
+        );
       }
       if (clinicalBackground.biotype !== undefined) {
         data.biotipo = this.sanitizeString(clinicalBackground.biotype);
@@ -694,9 +878,17 @@ export class HistoryService {
       return [];
     }
 
-    const entries: Array<{ normalizedKey: string; label: string; detail: string | null }> = [];
+    const entries: Array<{
+      normalizedKey: string;
+      label: string;
+      detail: string | null;
+    }> = [];
 
-    const pushEntry = (keyCandidate: unknown, detailCandidate: unknown, labelCandidate?: unknown) => {
+    const pushEntry = (
+      keyCandidate: unknown,
+      detailCandidate: unknown,
+      labelCandidate?: unknown,
+    ) => {
       const rawKey = this.sanitizeString(keyCandidate);
       if (!rawKey) {
         return;
@@ -708,7 +900,10 @@ export class HistoryService {
       }
 
       const detail = this.sanitizeString(detailCandidate);
-      const label = this.getDiseaseLabelFromKey(normalizedKey, this.sanitizeString(labelCandidate));
+      const label = this.getDiseaseLabelFromKey(
+        normalizedKey,
+        this.sanitizeString(labelCandidate),
+      );
 
       entries.push({ normalizedKey, label, detail });
     };
@@ -719,7 +914,8 @@ export class HistoryService {
           return;
         }
         const keyCandidate = entry.key ?? entry.disease;
-        const detailCandidate = entry.detail ?? entry.status ?? entry.value ?? entry.onset;
+        const detailCandidate =
+          entry.detail ?? entry.status ?? entry.value ?? entry.onset;
         const labelCandidate = entry.disease ?? entry.key ?? null;
         pushEntry(keyCandidate, detailCandidate, labelCandidate);
       });
@@ -742,8 +938,10 @@ export class HistoryService {
       return;
     }
 
-    const existing = await tx.paciente_enfermedad.findMany({ where: { id_paciente: patientId } });
-    const existingMap = new Map<string, typeof existing[number]>();
+    const existing = await tx.paciente_enfermedad.findMany({
+      where: { id_paciente: patientId },
+    });
+    const existingMap = new Map<string, (typeof existing)[number]>();
     existing.forEach((item) => {
       const normalized = normalizeLabelKey(item.enfermedad ?? '');
       if (normalized) {
@@ -758,7 +956,9 @@ export class HistoryService {
 
       if (!entry.detail) {
         if (existingEntry) {
-          await tx.paciente_enfermedad.delete({ where: { id: existingEntry.id } });
+          await tx.paciente_enfermedad.delete({
+            where: { id: existingEntry.id },
+          });
         }
         continue;
       }
@@ -793,8 +993,12 @@ export class HistoryService {
 
     return {
       birthPlace: toStringOrNull(patient.lugar_nacimiento),
-      birthTime: toTimeString(patient.hora_nacimiento as Date | null | undefined),
-      birthDate: toIsoString(patient.fecha_nacimiento as Date | null | undefined),
+      birthTime: toTimeString(
+        patient.hora_nacimiento as Date | null | undefined,
+      ),
+      birthDate: toIsoString(
+        patient.fecha_nacimiento as Date | null | undefined,
+      ),
       maritalStatus: toStringOrNull(patient.estado_civil),
       profession: toStringOrNull(patient.profesion),
       occupation: toStringOrNull(patient.ocupacion),
@@ -819,7 +1023,9 @@ export class HistoryService {
     };
   }
 
-  private mapTreatingDoctor(patient: paciente | null): PatientTreatingDoctorHistory | null {
+  private mapTreatingDoctor(
+    patient: paciente | null,
+  ): PatientTreatingDoctorHistory | null {
     if (!patient) {
       return null;
     }
@@ -831,7 +1037,9 @@ export class HistoryService {
     };
   }
 
-  private mapFamily(antecedent: paciente_antecedente | null): PatientFamilyHistory | null {
+  private mapFamily(
+    antecedent: paciente_antecedente | null,
+  ): PatientFamilyHistory | null {
     if (!antecedent) {
       return null;
     }
@@ -865,7 +1073,9 @@ export class HistoryService {
     };
   }
 
-  private mapImmunizations(antecedent: paciente_antecedente | null): PatientImmunizationHistory | null {
+  private mapImmunizations(
+    antecedent: paciente_antecedente | null,
+  ): PatientImmunizationHistory | null {
     if (!antecedent) {
       return null;
     }
@@ -883,7 +1093,9 @@ export class HistoryService {
     };
   }
 
-  private mapGynecological(antecedent: paciente_antecedente | null): PatientGynecologicalHistory | null {
+  private mapGynecological(
+    antecedent: paciente_antecedente | null,
+  ): PatientGynecologicalHistory | null {
     if (!antecedent) {
       return null;
     }
@@ -903,7 +1115,9 @@ export class HistoryService {
     };
   }
 
-  private mapLifestyle(antecedent: paciente_antecedente | null): PatientLifestyleHistory | null {
+  private mapLifestyle(
+    antecedent: paciente_antecedente | null,
+  ): PatientLifestyleHistory | null {
     if (!antecedent) {
       return null;
     }
@@ -930,7 +1144,9 @@ export class HistoryService {
     };
   }
 
-  private mapClinicalBackground(antecedent: paciente_antecedente | null): PatientClinicalBackgroundHistory | null {
+  private mapClinicalBackground(
+    antecedent: paciente_antecedente | null,
+  ): PatientClinicalBackgroundHistory | null {
     if (!antecedent) {
       return null;
     }
@@ -963,49 +1179,470 @@ export class HistoryService {
     };
   }
 
-  async getPersonalHistory(patientId: number): Promise<PatientPersonalHistory | null> {
+  private mapDentalExamRecord(
+    record: paciente_examen_dental,
+  ): PatientDentalExam {
+    const source = record as Record<string, unknown>;
+    const details: Record<string, string | null> = {};
+
+    DENTAL_EXAM_STRING_FIELDS.forEach((field) => {
+      details[field] = toStringOrNull(
+        source[field] as string | null | undefined,
+      );
+    });
+
+    return {
+      id: record.id,
+      patientId: record.id_paciente ?? null,
+      createdAt: toIsoString(record.created_at as Date | null | undefined),
+      updatedAt: toIsoString(record.updated_at as Date | null | undefined),
+      details,
+    };
+  }
+
+  private mapDentalPresenceRecord(
+    record: paciente_examen_dental_presentes,
+  ): PatientDentalPresenceExam {
+    const source = record as Record<string, unknown>;
+    const presence: Record<string, boolean> = {};
+
+    DENTAL_EXAM_PRESENCE_FIELDS.forEach((field) => {
+      const raw = source[field];
+      let numeric: number | null;
+
+      if (typeof raw === 'number') {
+        numeric = raw;
+      } else if (typeof raw === 'string') {
+        const parsed = Number(raw);
+        numeric = Number.isFinite(parsed) ? parsed : null;
+      } else if (raw === null || raw === undefined) {
+        numeric = null;
+      } else {
+        const parsed = Number(raw as any);
+        numeric = Number.isFinite(parsed) ? parsed : null;
+      }
+
+      presence[field] = toBoolean(numeric);
+    });
+
+    return {
+      id: record.id,
+      patientId: record.id_paciente ?? null,
+      createdAt: toIsoString(record.created_at as Date | null | undefined),
+      updatedAt: toIsoString(record.updated_at as Date | null | undefined),
+      presence,
+    };
+  }
+
+  private mapOcularExamRecord(
+    record: paciente_examen_ocular,
+  ): PatientOcularExam {
+    const patientReference = toStringOrNull(record.id_paciente);
+    const numericCandidate = patientReference ? Number(patientReference) : null;
+    const patientId =
+      typeof numericCandidate === 'number' && Number.isFinite(numericCandidate)
+        ? numericCandidate
+        : null;
+
+    return {
+      id: record.id,
+      patientId,
+      patientReference,
+      date: toIsoString(record.fecha as Date | null | undefined),
+      reason: toStringOrNull(record.motivo),
+      rightEye: {
+        eye: toStringOrNull(record.ojo_derecho),
+        observation: toStringOrNull(record.observacion_derecho),
+      },
+      leftEye: {
+        eye: toStringOrNull(record.ojo_izquierdo),
+        observation: toStringOrNull(record.observacion_izquierdo),
+      },
+      comment: toStringOrNull(record.comentario),
+      createdAt: toIsoString(record.created_at as Date | null | undefined),
+      updatedAt: toIsoString(record.updated_at as Date | null | undefined),
+    };
+  }
+
+  async getPersonalHistory(
+    patientId: number,
+  ): Promise<PatientPersonalHistory | null> {
     const patient = await this.loadPatient(patientId);
     return this.mapPersonal(patient);
   }
 
-  async getContactHistory(patientId: number): Promise<PatientContactHistory | null> {
+  async getContactHistory(
+    patientId: number,
+  ): Promise<PatientContactHistory | null> {
     const patient = await this.loadPatient(patientId);
     return this.mapContacts(patient);
   }
 
-  async getTreatingDoctorHistory(patientId: number): Promise<PatientTreatingDoctorHistory | null> {
+  async getTreatingDoctorHistory(
+    patientId: number,
+  ): Promise<PatientTreatingDoctorHistory | null> {
     const patient = await this.loadPatient(patientId);
     return this.mapTreatingDoctor(patient);
   }
 
-  async getFamilyHistory(patientId: number): Promise<PatientFamilyHistory | null> {
+  async getFamilyHistory(
+    patientId: number,
+  ): Promise<PatientFamilyHistory | null> {
     const antecedent = await this.loadAntecedent(patientId);
     return this.mapFamily(antecedent);
   }
 
-  async getImmunizationHistory(patientId: number): Promise<PatientImmunizationHistory | null> {
+  async getImmunizationHistory(
+    patientId: number,
+  ): Promise<PatientImmunizationHistory | null> {
     const antecedent = await this.loadAntecedent(patientId);
     return this.mapImmunizations(antecedent);
   }
 
-  async getGynecologicalHistory(patientId: number): Promise<PatientGynecologicalHistory | null> {
+  async getGynecologicalHistory(
+    patientId: number,
+  ): Promise<PatientGynecologicalHistory | null> {
     const antecedent = await this.loadAntecedent(patientId);
     return this.mapGynecological(antecedent);
   }
 
-  async getLifestyleHistory(patientId: number): Promise<PatientLifestyleHistory | null> {
+  async getLifestyleHistory(
+    patientId: number,
+  ): Promise<PatientLifestyleHistory | null> {
     const antecedent = await this.loadAntecedent(patientId);
     return this.mapLifestyle(antecedent);
   }
 
-  async getClinicalBackgroundHistory(patientId: number): Promise<PatientClinicalBackgroundHistory | null> {
+  async getClinicalBackgroundHistory(
+    patientId: number,
+  ): Promise<PatientClinicalBackgroundHistory | null> {
     const antecedent = await this.loadAntecedent(patientId);
     return this.mapClinicalBackground(antecedent);
   }
 
-  async saveMedicalAttachment(patientId: number, file: UploadedAttachmentFile): Promise<PatientMedicalAttachment> {
+  async listDentalExams(patientId: number): Promise<PatientDentalExam[]> {
+    const records = await this.prisma.paciente_examen_dental.findMany({
+      where: { id_paciente: patientId },
+      orderBy: { created_at: 'desc' },
+    });
+
+    return records.map((record) => this.mapDentalExamRecord(record));
+  }
+
+  async getDentalExam(
+    patientId: number,
+    examId: number,
+  ): Promise<PatientDentalExam> {
+    const record = await this.prisma.paciente_examen_dental.findUnique({
+      where: { id: examId },
+    });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Dental exam not found');
+    }
+
+    return this.mapDentalExamRecord(record);
+  }
+
+  async createDentalExam(
+    patientId: number,
+    payload: UpsertPatientDentalExamDto,
+  ): Promise<PatientDentalExam> {
+    const patient = await this.loadPatient(patientId);
+    if (!patient) {
+      throw new NotFoundException('Patient not found');
+    }
+
+    const data = this.buildDentalExamData(payload);
+    if (!this.hasData(data)) {
+      throw new BadRequestException(
+        'No data provided to create dental exam record.',
+      );
+    }
+
+    const timestamp = new Date();
+
+    const record = await this.prisma.paciente_examen_dental.create({
+      data: {
+        id_paciente: patientId,
+        ...data,
+        created_at: timestamp,
+        updated_at: timestamp,
+      },
+    });
+
+    return this.mapDentalExamRecord(record);
+  }
+
+  async updateDentalExam(
+    patientId: number,
+    examId: number,
+    payload: UpsertPatientDentalExamDto,
+  ): Promise<PatientDentalExam> {
+    const record = await this.prisma.paciente_examen_dental.findUnique({
+      where: { id: examId },
+    });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Dental exam not found');
+    }
+
+    const data = this.buildDentalExamData(payload);
+    if (!this.hasData(data)) {
+      throw new BadRequestException(
+        'No data provided to update dental exam record.',
+      );
+    }
+
+    const updated = await this.prisma.paciente_examen_dental.update({
+      where: { id: examId },
+      data: {
+        ...data,
+        updated_at: new Date(),
+      },
+    });
+
+    return this.mapDentalExamRecord(updated);
+  }
+
+  async deleteDentalExam(
+    patientId: number,
+    examId: number,
+  ): Promise<{ success: true }> {
+    const record = await this.prisma.paciente_examen_dental.findUnique({
+      where: { id: examId },
+    });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Dental exam not found');
+    }
+
+    await this.prisma.paciente_examen_dental.delete({ where: { id: examId } });
+
+    return { success: true } as const;
+  }
+
+  async listDentalPresenceRecords(
+    patientId: number,
+  ): Promise<PatientDentalPresenceExam[]> {
+    const records = await this.prisma.paciente_examen_dental_presentes.findMany(
+      {
+        where: { id_paciente: patientId },
+        orderBy: { created_at: 'desc' },
+      },
+    );
+
+    return records.map((record) => this.mapDentalPresenceRecord(record));
+  }
+
+  async getDentalPresenceRecord(
+    patientId: number,
+    recordId: number,
+  ): Promise<PatientDentalPresenceExam> {
+    const record =
+      await this.prisma.paciente_examen_dental_presentes.findUnique({
+        where: { id: recordId },
+      });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Dental presence record not found');
+    }
+
+    return this.mapDentalPresenceRecord(record);
+  }
+
+  async createDentalPresenceRecord(
+    patientId: number,
+    payload: UpsertPatientDentalPresenceDto,
+  ): Promise<PatientDentalPresenceExam> {
+    const patient = await this.loadPatient(patientId);
+    if (!patient) {
+      throw new NotFoundException('Patient not found');
+    }
+
+    const data = this.buildDentalPresenceData(payload);
+    if (!this.hasData(data)) {
+      throw new BadRequestException(
+        'No data provided to create dental presence record.',
+      );
+    }
+
+    const timestamp = new Date();
+
+    const record = await this.prisma.paciente_examen_dental_presentes.create({
+      data: {
+        id_paciente: patientId,
+        ...data,
+        created_at: timestamp,
+        updated_at: timestamp,
+      },
+    });
+
+    return this.mapDentalPresenceRecord(record);
+  }
+
+  async updateDentalPresenceRecord(
+    patientId: number,
+    recordId: number,
+    payload: UpsertPatientDentalPresenceDto,
+  ): Promise<PatientDentalPresenceExam> {
+    const record =
+      await this.prisma.paciente_examen_dental_presentes.findUnique({
+        where: { id: recordId },
+      });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Dental presence record not found');
+    }
+
+    const data = this.buildDentalPresenceData(payload);
+    if (!this.hasData(data)) {
+      throw new BadRequestException(
+        'No data provided to update dental presence record.',
+      );
+    }
+
+    const updated = await this.prisma.paciente_examen_dental_presentes.update({
+      where: { id: recordId },
+      data: {
+        ...data,
+        updated_at: new Date(),
+      },
+    });
+
+    return this.mapDentalPresenceRecord(updated);
+  }
+
+  async deleteDentalPresenceRecord(
+    patientId: number,
+    recordId: number,
+  ): Promise<{ success: true }> {
+    const record =
+      await this.prisma.paciente_examen_dental_presentes.findUnique({
+        where: { id: recordId },
+      });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Dental presence record not found');
+    }
+
+    await this.prisma.paciente_examen_dental_presentes.delete({
+      where: { id: recordId },
+    });
+
+    return { success: true } as const;
+  }
+
+  async listOcularExams(patientId: number): Promise<PatientOcularExam[]> {
+    const records = await this.prisma.paciente_examen_ocular.findMany({
+      where: { id_paciente: String(patientId) },
+      orderBy: [{ fecha: 'desc' }, { id: 'desc' }],
+    });
+
+    return records.map((record) => this.mapOcularExamRecord(record));
+  }
+
+  async getOcularExam(
+    patientId: number,
+    examId: number,
+  ): Promise<PatientOcularExam> {
+    const record = await this.prisma.paciente_examen_ocular.findUnique({
+      where: { id: examId },
+    });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Ocular exam not found');
+    }
+
+    return this.mapOcularExamRecord(record);
+  }
+
+  async createOcularExam(
+    patientId: number,
+    payload: UpsertPatientOcularExamDto,
+  ): Promise<PatientOcularExam> {
+    const patient = await this.loadPatient(patientId);
+    if (!patient) {
+      throw new NotFoundException('Patient not found');
+    }
+
+    const data = this.buildOcularExamData(payload);
+    if (!this.hasData(data)) {
+      throw new BadRequestException(
+        'No data provided to create ocular exam record.',
+      );
+    }
+
+    const timestamp = new Date();
+
+    const record = await this.prisma.paciente_examen_ocular.create({
+      data: {
+        id_paciente: String(patientId),
+        ...data,
+        created_at: timestamp,
+        updated_at: timestamp,
+      },
+    });
+
+    return this.mapOcularExamRecord(record);
+  }
+
+  async updateOcularExam(
+    patientId: number,
+    examId: number,
+    payload: UpsertPatientOcularExamDto,
+  ): Promise<PatientOcularExam> {
+    const record = await this.prisma.paciente_examen_ocular.findUnique({
+      where: { id: examId },
+    });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Ocular exam not found');
+    }
+
+    const data = this.buildOcularExamData(payload);
+    if (!this.hasData(data)) {
+      throw new BadRequestException(
+        'No data provided to update ocular exam record.',
+      );
+    }
+
+    const updated = await this.prisma.paciente_examen_ocular.update({
+      where: { id: examId },
+      data: {
+        ...data,
+        updated_at: new Date(),
+      },
+    });
+
+    return this.mapOcularExamRecord(updated);
+  }
+
+  async deleteOcularExam(
+    patientId: number,
+    examId: number,
+  ): Promise<{ success: true }> {
+    const record = await this.prisma.paciente_examen_ocular.findUnique({
+      where: { id: examId },
+    });
+
+    if (!record || !this.matchesPatientId(record.id_paciente, patientId)) {
+      throw new NotFoundException('Ocular exam not found');
+    }
+
+    await this.prisma.paciente_examen_ocular.delete({ where: { id: examId } });
+
+    return { success: true } as const;
+  }
+
+  async saveMedicalAttachment(
+    patientId: number,
+    file: UploadedAttachmentFile,
+  ): Promise<PatientMedicalAttachment> {
     if (!file || !file.buffer || file.buffer.length === 0) {
-      throw new BadRequestException('El archivo proporcionado está vacío o es inválido.');
+      throw new BadRequestException(
+        'El archivo proporcionado está vacío o es inválido.',
+      );
     }
 
     const patient = await this.loadPatient(patientId);
@@ -1044,7 +1681,9 @@ export class HistoryService {
     };
   }
 
-  async getMedicalAttachments(patientId: number): Promise<PatientMedicalAttachment[]> {
+  async getMedicalAttachments(
+    patientId: number,
+  ): Promise<PatientMedicalAttachment[]> {
     const attachments = await this.prisma.paciente_historia.findMany({
       where: { id_paciente: patientId },
       orderBy: { created_at: 'desc' },
@@ -1058,7 +1697,9 @@ export class HistoryService {
     }));
   }
 
-  async getAllMedicalAttachments(): Promise<PatientMedicalAttachmentWithPatient[]> {
+  async getAllMedicalAttachments(): Promise<
+    PatientMedicalAttachmentWithPatient[]
+  > {
     const attachments = await this.prisma.paciente_historia.findMany({
       orderBy: { created_at: 'desc' },
       select: {
@@ -1071,7 +1712,11 @@ export class HistoryService {
     });
 
     const patientIds = Array.from(
-      new Set(attachments.map((item) => item.id_paciente).filter((id): id is number => typeof id === 'number')),
+      new Set(
+        attachments
+          .map((item) => item.id_paciente)
+          .filter((id): id is number => typeof id === 'number'),
+      ),
     );
 
     const patients = await this.prisma.paciente.findMany({
@@ -1087,17 +1732,23 @@ export class HistoryService {
     return attachments.map((item) => ({
       id: item.id,
       patientId: item.id_paciente ?? null,
-      userId: item.id_paciente ? patientIdToUserId.get(item.id_paciente) ?? null : null,
+      userId: item.id_paciente
+        ? (patientIdToUserId.get(item.id_paciente) ?? null)
+        : null,
       file: toStringOrNull(item.archivo),
       createdAt: toIsoString(item.created_at as Date | null | undefined),
       updatedAt: toIsoString(item.updated_at as Date | null | undefined),
     }));
   }
 
-  async getAttachmentFile(
-    attachmentId: number,
-  ): Promise<{ stream: ReadStream; filename: string; mimeType: string; patientId: number | null; userId: number | null; relativePath: string }>
-  {
+  async getAttachmentFile(attachmentId: number): Promise<{
+    stream: ReadStream;
+    filename: string;
+    mimeType: string;
+    patientId: number | null;
+    userId: number | null;
+    relativePath: string;
+  }> {
     const record = await this.prisma.paciente_historia.findUnique({
       where: { id: attachmentId },
     });
@@ -1140,7 +1791,9 @@ export class HistoryService {
     };
   }
 
-  async getMedicalConsultations(patientId: number): Promise<PatientMedicalConsultation[]> {
+  async getMedicalConsultations(
+    patientId: number,
+  ): Promise<PatientMedicalConsultation[]> {
     const consultations = await this.prisma.paciente_consulta.findMany({
       where: { id_paciente: patientId },
       orderBy: { fecha: 'desc' },
@@ -1173,7 +1826,9 @@ export class HistoryService {
     }));
   }
 
-  async getCoachConsultations(patientId: number): Promise<PatientCoachConsultation[]> {
+  async getCoachConsultations(
+    patientId: number,
+  ): Promise<PatientCoachConsultation[]> {
     const consultations = await this.prisma.paciente_consulta_coach.findMany({
       where: { id_paciente: patientId },
       orderBy: { fecha: 'desc' },
@@ -1188,9 +1843,11 @@ export class HistoryService {
     }));
   }
 
-  async getDiseaseHistory(patientId: number): Promise<PatientDiseaseHistoryEntry[]> {
+  async getDiseaseHistory(
+    patientId: number,
+  ): Promise<PatientDiseaseHistoryEntry[]> {
     const diseases = await this.prisma.paciente_enfermedad.findMany({
-      where: { id_paciente: patientId }
+      where: { id_paciente: patientId },
     });
 
     return diseases.map((item) => ({
@@ -1202,7 +1859,10 @@ export class HistoryService {
     }));
   }
 
-  async updateFullMedicalHistory(patientId: number, payload: UpdateHistoryDto = {}): Promise<PatientMedicalHistory> {
+  async updateFullMedicalHistory(
+    patientId: number,
+    payload: UpdateHistoryDto = {},
+  ): Promise<PatientMedicalHistory> {
     const existingPatient = await this.loadPatient(patientId);
     if (!existingPatient) {
       throw new NotFoundException('Patient not found');
@@ -1222,7 +1882,9 @@ export class HistoryService {
 
       const antecedentData = this.buildAntecedentData(payload);
       if (this.hasData(antecedentData)) {
-        const antecedentRecord = await tx.paciente_antecedente.findFirst({ where: { id_paciente: patientId } });
+        const antecedentRecord = await tx.paciente_antecedente.findFirst({
+          where: { id_paciente: patientId },
+        });
         const timestamp = new Date();
 
         if (antecedentRecord) {
@@ -1251,7 +1913,10 @@ export class HistoryService {
     return this.getFullMedicalHistory(patientId);
   }
 
-  async updateFullMedicalHistoryByUserId(userId: number, payload: UpdateHistoryDto = {}): Promise<PatientMedicalHistory> {
+  async updateFullMedicalHistoryByUserId(
+    userId: number,
+    payload: UpdateHistoryDto = {},
+  ): Promise<PatientMedicalHistory> {
     const patientRecord = await this.loadPatientByUserId(userId);
     if (!patientRecord) {
       throw new NotFoundException('Patient not found for the provided user');
@@ -1260,8 +1925,17 @@ export class HistoryService {
     return this.updateFullMedicalHistory(patientRecord.id, payload);
   }
 
-  async getFullMedicalHistory(patientId: number): Promise<PatientMedicalHistory> {
-    const [patientRecord, antecedentRecord, attachments, consultations, coachConsultations, diseases] = await Promise.all([
+  async getFullMedicalHistory(
+    patientId: number,
+  ): Promise<PatientMedicalHistory> {
+    const [
+      patientRecord,
+      antecedentRecord,
+      attachments,
+      consultations,
+      coachConsultations,
+      diseases,
+    ] = await Promise.all([
       this.loadPatient(patientId),
       this.loadAntecedent(patientId),
       this.getMedicalAttachments(patientId),
@@ -1286,14 +1960,22 @@ export class HistoryService {
     };
   }
 
-  async getFullMedicalHistoryByUserId(userId: number): Promise<PatientMedicalHistory | null> {
+  async getFullMedicalHistoryByUserId(
+    userId: number,
+  ): Promise<PatientMedicalHistory | null> {
     const patientRecord = await this.loadPatientByUserId(userId);
     if (!patientRecord) {
       return null;
     }
 
     const patientId = patientRecord.id;
-    const [antecedentRecord, attachments, consultations, coachConsultations, diseases] = await Promise.all([
+    const [
+      antecedentRecord,
+      attachments,
+      consultations,
+      coachConsultations,
+      diseases,
+    ] = await Promise.all([
       this.loadAntecedent(patientId),
       this.getMedicalAttachments(patientId),
       this.getMedicalConsultations(patientId),

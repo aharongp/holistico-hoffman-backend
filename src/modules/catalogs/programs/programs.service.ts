@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { CreateProgramDto } from './dto/create-program.dto';
 import { UpdateProgramDto } from './dto/update-program.dto';
@@ -112,17 +116,28 @@ export class ProgramsService {
   }
 
   async create(createProgramDto: CreateProgramDto): Promise<PublicProgram> {
-    const rawName = (createProgramDto as any).nombre ?? (createProgramDto as any).name ?? null;
-    const rawDescription = (createProgramDto as any).descripcion ?? (createProgramDto as any).description ?? null;
-    const rawUserCreated = (createProgramDto as any).user_created ?? (createProgramDto as any).userCreated ?? null;
+    const rawName =
+      (createProgramDto as any).nombre ??
+      (createProgramDto as any).name ??
+      null;
+    const rawDescription =
+      (createProgramDto as any).descripcion ??
+      (createProgramDto as any).description ??
+      null;
+    const rawUserCreated =
+      (createProgramDto as any).user_created ??
+      (createProgramDto as any).userCreated ??
+      null;
 
     const nombre = typeof rawName === 'string' ? rawName.trim() : null;
     if (!nombre) {
       throw new BadRequestException('El nombre del programa es obligatorio');
     }
 
-    const descripcion = typeof rawDescription === 'string' ? rawDescription.trim() : null;
-    const userCreated = typeof rawUserCreated === 'string' ? rawUserCreated.trim() : null;
+    const descripcion =
+      typeof rawDescription === 'string' ? rawDescription.trim() : null;
+    const userCreated =
+      typeof rawUserCreated === 'string' ? rawUserCreated.trim() : null;
 
     const created = await this.prisma.programa.create({
       data: {
@@ -160,7 +175,7 @@ export class ProgramsService {
         updated_at: true,
       },
     });
-    return programs.map(p => this.mapProgram(p));
+    return programs.map((p) => this.mapProgram(p));
   }
 
   async findOne(id: number): Promise<PublicProgramDetails | null> {
@@ -200,13 +215,19 @@ export class ProgramsService {
 
     return {
       ...this.mapProgram(program),
-      activities: activities.map(activity => this.mapActivity(activity)),
+      activities: activities.map((activity) => this.mapActivity(activity)),
     };
   }
 
-  async update(id: number, updateProgramDto: UpdateProgramDto): Promise<PublicProgram | null> {
-    const rawName = (updateProgramDto as any).nombre ?? (updateProgramDto as any).name;
-    const rawDescription = (updateProgramDto as any).descripcion ?? (updateProgramDto as any).description;
+  async update(
+    id: number,
+    updateProgramDto: UpdateProgramDto,
+  ): Promise<PublicProgram | null> {
+    const rawName =
+      (updateProgramDto as any).nombre ?? (updateProgramDto as any).name;
+    const rawDescription =
+      (updateProgramDto as any).descripcion ??
+      (updateProgramDto as any).description;
 
     const data: Record<string, any> = {};
 
@@ -216,7 +237,10 @@ export class ProgramsService {
     }
 
     if (typeof rawDescription !== 'undefined') {
-      const descripcion = typeof rawDescription === 'string' ? rawDescription.trim() : rawDescription;
+      const descripcion =
+        typeof rawDescription === 'string'
+          ? rawDescription.trim()
+          : rawDescription;
       data.descripcion = descripcion === '' ? null : descripcion;
     }
 
@@ -240,7 +264,10 @@ export class ProgramsService {
       if (!updated) return null;
       return this.mapProgram(updated);
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Programa con id ${id} no existe`);
       }
       throw error;
@@ -266,10 +293,13 @@ export class ProgramsService {
         updated_at: true,
       },
     });
-    return activities.map(activity => this.mapActivity(activity));
+    return activities.map((activity) => this.mapActivity(activity));
   }
 
-  async addActivityToProgram(id: number, dto: CreateProgramActivityDto): Promise<PublicActivity> {
+  async addActivityToProgram(
+    id: number,
+    dto: CreateProgramActivityDto,
+  ): Promise<PublicActivity> {
     const existing = await this.prisma.programa.findUnique({
       where: { id },
       select: { id: true },
@@ -280,19 +310,23 @@ export class ProgramsService {
     }
 
     const rawName = (dto as any).nombre ?? (dto as any).name ?? null;
-    const rawDescription = (dto as any).descripcion ?? (dto as any).description ?? null;
+    const rawDescription =
+      (dto as any).descripcion ?? (dto as any).description ?? null;
     const rawDay = (dto as any).dia ?? (dto as any).day ?? null;
     const rawTime = (dto as any).hora ?? (dto as any).time ?? null;
-    const rawUserCreated = (dto as any).user_created ?? (dto as any).userCreated ?? null;
+    const rawUserCreated =
+      (dto as any).user_created ?? (dto as any).userCreated ?? null;
 
     const nombre = typeof rawName === 'string' ? rawName.trim() : null;
     if (!nombre) {
       throw new BadRequestException('El nombre de la actividad es obligatorio');
     }
 
-    const descripcion = typeof rawDescription === 'string' ? rawDescription.trim() : null;
+    const descripcion =
+      typeof rawDescription === 'string' ? rawDescription.trim() : null;
     const dia = this.normalizeDay(typeof rawDay === 'string' ? rawDay : null);
-    const userCreated = typeof rawUserCreated === 'string' ? rawUserCreated.trim() || null : null;
+    const userCreated =
+      typeof rawUserCreated === 'string' ? rawUserCreated.trim() || null : null;
 
     let hora: Date | null = null;
     if (typeof rawTime === 'string' && rawTime.trim()) {
@@ -341,12 +375,15 @@ export class ProgramsService {
       return mapped;
     }
 
-    const upperCased = normalized.charAt(0).toUpperCase() + normalized.slice(1, 3).toLowerCase();
+    const upperCased =
+      normalized.charAt(0).toUpperCase() + normalized.slice(1, 3).toLowerCase();
     if (ALLOWED_DAY_CODES.has(upperCased)) {
       return upperCased;
     }
 
-    throw new BadRequestException('El día de la actividad es inválido. Usa Mon, Tue, Wed, Thu, Fri, Sat o Sun.');
+    throw new BadRequestException(
+      'El día de la actividad es inválido. Usa Mon, Tue, Wed, Thu, Fri, Sat o Sun.',
+    );
   }
 
   private parseTime(rawTime: string): Date {
@@ -360,7 +397,11 @@ export class ProgramsService {
     return new Date(Date.UTC(1970, 0, 1, hours, minutes, 0, 0));
   }
 
-  async updateActivityOnProgram(id: number, activityId: number, dto: UpdateProgramActivityDto): Promise<PublicActivity> {
+  async updateActivityOnProgram(
+    id: number,
+    activityId: number,
+    dto: UpdateProgramActivityDto,
+  ): Promise<PublicActivity> {
     const activity = await this.prisma.actividad.findUnique({
       where: { id: activityId },
       select: {
@@ -369,7 +410,9 @@ export class ProgramsService {
     });
 
     if (!activity || activity.id_programa !== id) {
-      throw new NotFoundException(`Actividad ${activityId} no encontrada para el programa ${id}`);
+      throw new NotFoundException(
+        `Actividad ${activityId} no encontrada para el programa ${id}`,
+      );
     }
 
     const data: Prisma.actividadUpdateInput = {
@@ -380,14 +423,20 @@ export class ProgramsService {
       const rawName = (dto as any).nombre ?? (dto as any).name ?? null;
       const nombre = typeof rawName === 'string' ? rawName.trim() : null;
       if (!nombre) {
-        throw new BadRequestException('El nombre de la actividad es obligatorio');
+        throw new BadRequestException(
+          'El nombre de la actividad es obligatorio',
+        );
       }
       data.nombre = nombre;
     }
 
     if (Object.prototype.hasOwnProperty.call(dto, 'descripcion')) {
-      const rawDescription = (dto as any).descripcion ?? (dto as any).description ?? null;
-      data.descripcion = typeof rawDescription === 'string' ? rawDescription.trim() || null : null;
+      const rawDescription =
+        (dto as any).descripcion ?? (dto as any).description ?? null;
+      data.descripcion =
+        typeof rawDescription === 'string'
+          ? rawDescription.trim() || null
+          : null;
     }
 
     if (Object.prototype.hasOwnProperty.call(dto, 'dia')) {
@@ -424,14 +473,19 @@ export class ProgramsService {
     return this.mapActivity(updated);
   }
 
-  async removeActivityFromProgram(id: number, activityId: number): Promise<{ deleted: boolean; id: number }> {
+  async removeActivityFromProgram(
+    id: number,
+    activityId: number,
+  ): Promise<{ deleted: boolean; id: number }> {
     const activity = await this.prisma.actividad.findUnique({
       where: { id: activityId },
       select: { id_programa: true },
     });
 
     if (!activity || activity.id_programa !== id) {
-      throw new NotFoundException(`Actividad ${activityId} no encontrada para el programa ${id}`);
+      throw new NotFoundException(
+        `Actividad ${activityId} no encontrada para el programa ${id}`,
+      );
     }
 
     await this.prisma.actividad.delete({ where: { id: activityId } });
@@ -444,7 +498,10 @@ export class ProgramsService {
       await this.prisma.programa.delete({ where: { id } });
       return { deleted: true, id };
     } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
         throw new NotFoundException(`Programa con id ${id} no existe`);
       }
       throw error;

@@ -1,4 +1,12 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+} from '@nestjs/common';
 import { CosmobiologyService } from './cosmobiology.service';
 import { CreateCosmobiologyDto } from './dto/create-cosmobiology.dto';
 import { UpdateCosmobiologyDto } from './dto/update-cosmobiology.dto';
@@ -23,7 +31,10 @@ export class CosmobiologyController {
   }
 
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateCosmobiologyDto: UpdateCosmobiologyDto) {
+  update(
+    @Param('id') id: string,
+    @Body() updateCosmobiologyDto: UpdateCosmobiologyDto,
+  ) {
     return this.cosmobiologyService.update(+id, updateCosmobiologyDto);
   }
 

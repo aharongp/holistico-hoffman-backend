@@ -8,6 +8,14 @@ import { SubjectsModule } from './subjects/subjects.module';
 import { CriterionModule } from './criterion/criterion.module';
 
 @Module({
-  imports: [CountriesModule, ProgramsModule, QuestionsModule, InstrumentsModule, TopicsModule, SubjectsModule, CriterionModule]
+  imports: [
+    CountriesModule,
+    ProgramsModule,
+    QuestionsModule,
+    InstrumentsModule,
+    TopicsModule,
+    SubjectsModule,
+    CriterionModule,
+  ],
 })
 export class CatalogsModule {}

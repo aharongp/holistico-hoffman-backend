@@ -4,7 +4,7 @@ import { TopicsController } from './topics.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
 
 @Module({
-  controllers: [TopicsController],  
+  controllers: [TopicsController],
   imports: [PrismaModule],
   providers: [TopicsService],
 })

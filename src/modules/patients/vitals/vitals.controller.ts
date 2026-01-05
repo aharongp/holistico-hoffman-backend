@@ -1,4 +1,13 @@
-import { Controller, Get, Param, ParseIntPipe, Post, Body, Patch, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Body,
+  Patch,
+  Delete,
+} from '@nestjs/common';
 import { VitalsService } from './vitals.service';
 import { CreateVitalDto } from './dto/create-vital.dto';
 import { CreatePulseDto } from './dto/create-pulse.dto';

@@ -1,4 +1,8 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreatePatientDto } from './dto/create-patient.dto';
 import { UpdatePatientDto } from './dto/update-patient.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -106,7 +110,9 @@ export class PatientService {
       return false;
     }
 
-    return ['id_cinta', 'ribbonId', 'idCinta'].some(key => Object.prototype.hasOwnProperty.call(dto, key));
+    return ['id_cinta', 'ribbonId', 'idCinta'].some((key) =>
+      Object.prototype.hasOwnProperty.call(dto, key),
+    );
   }
 
   private normalizeDate(value: unknown): Date | null {
@@ -132,33 +138,44 @@ export class PatientService {
   }
 
   private buildPatientPayload(createPatientDto: CreatePatientDto) {
-    const firstName = this.normalizeString(createPatientDto.nombres ?? (createPatientDto as any).firstName);
-    const lastName = this.normalizeString(createPatientDto.apellidos ?? (createPatientDto as any).lastName);
+    const firstName = this.normalizeString(
+      createPatientDto.nombres ?? (createPatientDto as any).firstName,
+    );
+    const lastName = this.normalizeString(
+      createPatientDto.apellidos ?? (createPatientDto as any).lastName,
+    );
     const gender = this.normalizeString(createPatientDto.genero);
     const contactName = this.normalizeString(createPatientDto.contacto);
     const contactEmail = this.normalizeString(
-      createPatientDto.contacto_correo
-        ?? (createPatientDto as any).contactoCorreo
-        ?? (createPatientDto as any).email
-        ?? (createPatientDto as any).correo
+      createPatientDto.contacto_correo ??
+        (createPatientDto as any).contactoCorreo ??
+        (createPatientDto as any).email ??
+        (createPatientDto as any).correo,
     );
     const contactPhone = this.normalizeString(
-      createPatientDto.contacto_telefono
-        ?? (createPatientDto as any).contactoTelefono
-        ?? (createPatientDto as any).telefono_contacto
+      createPatientDto.contacto_telefono ??
+        (createPatientDto as any).contactoTelefono ??
+        (createPatientDto as any).telefono_contacto,
     );
     const telefono = this.normalizeString(createPatientDto.telefono);
     const direccion = this.normalizeString(createPatientDto.direccion);
     const cedula = this.normalizeString((createPatientDto as any).cedula);
     const programId = this.normalizeNumber(createPatientDto.id_programa);
-    const explicitUserId = this.normalizeNumber(createPatientDto.id_usuario ?? (createPatientDto as any).userId);
+    const explicitUserId = this.normalizeNumber(
+      createPatientDto.id_usuario ?? (createPatientDto as any).userId,
+    );
     const birthDate = this.normalizeDate(createPatientDto.fecha_nacimiento);
     const activeFlag = this.normalizeNumber(createPatientDto.activo);
-    const userRole = this.normalizeString(createPatientDto.user_role ?? (createPatientDto as any).rol ?? (createPatientDto as any).role) ?? 'patient';
+    const userRole =
+      this.normalizeString(
+        createPatientDto.user_role ??
+          (createPatientDto as any).rol ??
+          (createPatientDto as any).role,
+      ) ?? 'patient';
     const ribbonId = this.normalizeNumber(
-      (createPatientDto as any).id_cinta
-        ?? (createPatientDto as any).ribbonId
-        ?? (createPatientDto as any).idCinta,
+      (createPatientDto as any).id_cinta ??
+        (createPatientDto as any).ribbonId ??
+        (createPatientDto as any).idCinta,
     );
 
     return {
@@ -182,7 +199,7 @@ export class PatientService {
 
   private joinNames(firstName: string | null, lastName: string | null): string {
     const parts = [firstName, lastName]
-      .map(value => (value ?? '').toString().trim())
+      .map((value) => (value ?? '').toString().trim())
       .filter(Boolean);
     return parts.join(' ').trim();
   }
@@ -197,7 +214,7 @@ export class PatientService {
         apellidos: null,
         genero: null,
         fecha_nacimiento: null,
-  fecha_ingreso: null,
+        fecha_ingreso: null,
         telefono: null,
         direccion: null,
         activo: null,
@@ -219,7 +236,7 @@ export class PatientService {
       apellidos: record.apellidos ?? null,
       genero: record.genero ?? null,
       fecha_nacimiento: record.fecha_nacimiento ?? null,
-  fecha_ingreso: record.fecha_ingreso ?? null,
+      fecha_ingreso: record.fecha_ingreso ?? null,
       telefono: record.telefono ?? null,
       direccion: record.direccion ?? null,
       activo: record.activo ?? null,
@@ -255,7 +272,7 @@ export class PatientService {
     const normalizedEmail = contactEmail ? contactEmail.toLowerCase() : null;
     const ribbonIdProvided = this.hasRibbonIdKey(createPatientDto);
 
-    const patient = await this.prisma.$transaction(async prisma => {
+    const patient = await this.prisma.$transaction(async (prisma) => {
       let resolvedUserId = explicitUserId;
 
       if (!resolvedUserId && normalizedEmail) {
@@ -267,7 +284,8 @@ export class PatientService {
         if (existing) {
           resolvedUserId = existing.id;
         } else {
-          const username = this.joinNames(firstName, lastName) || normalizedEmail;
+          const username =
+            this.joinNames(firstName, lastName) || normalizedEmail;
           const createdUser = await prisma.usuario.create({
             data: {
               email: normalizedEmail,
@@ -299,7 +317,11 @@ export class PatientService {
           contacto_correo: normalizedEmail ?? null,
           contacto_telefono: contactPhone ?? telefono ?? null,
           id_usuario: resolvedUserId ?? null,
-          id_cinta: ribbonIdProvided ? (typeof ribbonId === 'number' ? ribbonId : null) : null,
+          id_cinta: ribbonIdProvided
+            ? typeof ribbonId === 'number'
+              ? ribbonId
+              : null
+            : null,
         },
         select: this.patientSelect,
       });
@@ -314,7 +336,7 @@ export class PatientService {
     const patients = await this.prisma.paciente.findMany({
       select: this.patientSelect,
     });
-    return patients.map(p => this.mapPatient(p));
+    return patients.map((p) => this.mapPatient(p));
   }
 
   async findOne(id: number): Promise<PublicPatient | null> {
@@ -326,7 +348,10 @@ export class PatientService {
     return this.mapPatient(p);
   }
 
-  async update(id: number, updatePatientDto: UpdatePatientDto): Promise<PublicPatient | null> {
+  async update(
+    id: number,
+    updatePatientDto: UpdatePatientDto,
+  ): Promise<PublicPatient | null> {
     const {
       firstName,
       lastName,
@@ -344,11 +369,17 @@ export class PatientService {
       ribbonId,
     } = this.buildPatientPayload(updatePatientDto);
 
-    const normalizedEmail = contactEmail ? contactEmail.toLowerCase() : contactEmail;
+    const normalizedEmail = contactEmail
+      ? contactEmail.toLowerCase()
+      : contactEmail;
     const ribbonIdProvided = this.hasRibbonIdKey(updatePatientDto);
 
-    const hasExplicitUserId = Object.prototype.hasOwnProperty.call(updatePatientDto as any, 'id_usuario')
-      || Object.prototype.hasOwnProperty.call(updatePatientDto as any, 'userId');
+    const hasExplicitUserId =
+      Object.prototype.hasOwnProperty.call(
+        updatePatientDto as any,
+        'id_usuario',
+      ) ||
+      Object.prototype.hasOwnProperty.call(updatePatientDto as any, 'userId');
 
     const updated = await this.prisma.paciente.update({
       where: { id },
@@ -364,9 +395,17 @@ export class PatientService {
         id_programa: programId ?? undefined,
         contacto: contactName ?? undefined,
         contacto_correo: normalizedEmail ?? undefined,
-        contacto_telefono: (contactPhone ?? telefono) ?? undefined,
-        id_usuario: hasExplicitUserId ? (typeof explicitUserId === 'number' ? explicitUserId : null) : undefined,
-        id_cinta: ribbonIdProvided ? (typeof ribbonId === 'number' ? ribbonId : null) : undefined,
+        contacto_telefono: contactPhone ?? telefono ?? undefined,
+        id_usuario: hasExplicitUserId
+          ? typeof explicitUserId === 'number'
+            ? explicitUserId
+            : null
+          : undefined,
+        id_cinta: ribbonIdProvided
+          ? typeof ribbonId === 'number'
+            ? ribbonId
+            : null
+          : undefined,
       },
       select: this.patientSelect,
     });
@@ -374,14 +413,21 @@ export class PatientService {
     return this.mapPatient(updated);
   }
 
-  async assignProgram(patientId: number, rawProgramId?: number | string | null): Promise<PublicPatient> {
-    const patientExists = await this.prisma.paciente.findUnique({ where: { id: patientId } });
+  async assignProgram(
+    patientId: number,
+    rawProgramId?: number | string | null,
+  ): Promise<PublicPatient> {
+    const patientExists = await this.prisma.paciente.findUnique({
+      where: { id: patientId },
+    });
     if (!patientExists) {
       throw new NotFoundException('El paciente especificado no existe.');
     }
 
     if (typeof rawProgramId === 'undefined') {
-      throw new BadRequestException('Debes proporcionar un identificador de programa o null para desasignar.');
+      throw new BadRequestException(
+        'Debes proporcionar un identificador de programa o null para desasignar.',
+      );
     }
 
     let normalizedProgramId: number | null = null;
@@ -389,10 +435,15 @@ export class PatientService {
     if (rawProgramId !== null) {
       const candidate = this.normalizeNumber(rawProgramId);
       if (candidate === null) {
-        throw new BadRequestException('El identificador del programa es inválido.');
+        throw new BadRequestException(
+          'El identificador del programa es inválido.',
+        );
       }
 
-      const programExists = await this.prisma.programa.findUnique({ where: { id: candidate }, select: { id: true } });
+      const programExists = await this.prisma.programa.findUnique({
+        where: { id: candidate },
+        select: { id: true },
+      });
       if (!programExists) {
         throw new NotFoundException('El programa especificado no existe.');
       }
@@ -437,7 +488,7 @@ export class PatientService {
       },
     });
 
-    return patients.map(p => ({
+    return patients.map((p) => ({
       id: p.id,
       cedula: p.cedula ?? null,
       id_usuario: p.id_usuario ?? null,
@@ -459,16 +510,27 @@ export class PatientService {
     return this.historyService.getFullMedicalHistory(patientId);
   }
 
-  async getMedicalHistoryByUserId(userId: number): Promise<PatientMedicalHistory | null> {
+  async getMedicalHistoryByUserId(
+    userId: number,
+  ): Promise<PatientMedicalHistory | null> {
     return this.historyService.getFullMedicalHistoryByUserId(userId);
   }
 
-  async updateMedicalHistory(patientId: number, payload: UpdateHistoryDto): Promise<PatientMedicalHistory> {
+  async updateMedicalHistory(
+    patientId: number,
+    payload: UpdateHistoryDto,
+  ): Promise<PatientMedicalHistory> {
     return this.historyService.updateFullMedicalHistory(patientId, payload);
   }
 
-  async updateMedicalHistoryByUserId(userId: number, payload: UpdateHistoryDto): Promise<PatientMedicalHistory> {
-    return this.historyService.updateFullMedicalHistoryByUserId(userId, payload);
+  async updateMedicalHistoryByUserId(
+    userId: number,
+    payload: UpdateHistoryDto,
+  ): Promise<PatientMedicalHistory> {
+    return this.historyService.updateFullMedicalHistoryByUserId(
+      userId,
+      payload,
+    );
   }
 
   async uploadAttachment(patientId: number, file: UploadableAttachment) {
@@ -476,7 +538,9 @@ export class PatientService {
   }
 
   async uploadAttachmentByUserId(userId: number, file: UploadableAttachment) {
-    const patientRecord = await this.prisma.paciente.findFirst({ where: { id_usuario: userId } });
+    const patientRecord = await this.prisma.paciente.findFirst({
+      where: { id_usuario: userId },
+    });
     if (!patientRecord) {
       throw new NotFoundException('Patient not found for the provided user');
     }
@@ -496,7 +560,9 @@ export class PatientService {
   }
 
   async getAttachmentsByUserId(userId: number) {
-    const patientRecord = await this.prisma.paciente.findFirst({ where: { id_usuario: userId } });
+    const patientRecord = await this.prisma.paciente.findFirst({
+      where: { id_usuario: userId },
+    });
     if (!patientRecord) {
       return [] as any[];
     }
