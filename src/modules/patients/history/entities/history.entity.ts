@@ -199,7 +199,7 @@ export interface PatientDentalPresenceExam {
   patientId: number | null;
   createdAt: string | null;
   updatedAt: string | null;
-  presence: Record<string, boolean>;
+  presence: Record<string, boolean | null>;
 }
 
 export interface PatientOcularExam {

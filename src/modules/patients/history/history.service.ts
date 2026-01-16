@@ -16,6 +16,7 @@ import {
   paciente_examen_dental_presentes,
   paciente_examen_ocular,
 } from '@prisma/client';
+import sharp from 'sharp';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { UpdateHistoryDto } from './dto/update-history.dto';
 import {
@@ -50,6 +51,11 @@ type UploadedAttachmentFile = {
   originalname?: string | null;
   mimetype?: string | null;
   size?: number | null;
+};
+
+type OcularExamImageUploads = {
+  right?: UploadedAttachmentFile | null;
+  left?: UploadedAttachmentFile | null;
 };
 
 const toIsoString = (value: Date | null | undefined): string | null => {
@@ -162,6 +168,28 @@ export class HistoryService {
 
     return candidates[0];
   })();
+
+  private readonly ocularImagesDir = (() => {
+    const candidates = [
+      join(process.cwd(), 'assets', 'images', 'foto_ocular'),
+      join(process.cwd(), 'src', 'assets', 'images', 'foto_ocular'),
+      join(process.cwd(), 'dist', 'assets', 'images', 'foto_ocular'),
+      join(__dirname, '..', '..', '..', 'assets', 'images', 'foto_ocular'),
+    ];
+
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return candidates[0];
+  })();
+
+  private readonly ocularImageTargetPixels = Math.max(
+    1,
+    Math.round((4 / 2.54) * 96),
+  );
 
   constructor(private readonly prisma: PrismaService) {}
 
@@ -392,6 +420,16 @@ export class HistoryService {
     return data;
   }
 
+  private createEmptyDentalPresenceState(): Record<string, number | null> {
+    const state: Record<string, number | null> = {};
+
+    DENTAL_EXAM_PRESENCE_FIELDS.forEach((field) => {
+      state[field] = null;
+    });
+
+    return state;
+  }
+
   private buildDentalPresenceData(
     payload: UpsertPatientDentalPresenceDto | undefined,
   ): Record<string, number | null> {
@@ -456,6 +494,97 @@ export class HistoryService {
     }
 
     return data;
+  }
+
+  private async storeOcularImage(
+    patientId: number,
+    file?: UploadedAttachmentFile | null,
+  ): Promise<string | null> {
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      return null;
+    }
+
+    if (file.size && file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException(
+        'La imagen ocular debe pesar máximo 10MB.',
+      );
+    }
+
+    if (file.mimetype) {
+      const normalizedMime = file.mimetype.toLowerCase();
+      const allowedMimes = new Set(['image/jpeg', 'image/jpg', 'image/png']);
+
+      if (!allowedMimes.has(normalizedMime)) {
+        throw new BadRequestException(
+          'Formato de imagen ocular no permitido. Usa archivos JPG o PNG.',
+        );
+      }
+    }
+
+    let extension = extname(file.originalname ?? '').toLowerCase();
+    if (!extension || !/^\.[a-z0-9]{1,10}$/.test(extension)) {
+      extension = this.guessExtension(file.mimetype);
+    }
+
+    if (!extension) {
+      extension = '.jpg';
+    }
+
+    const targetFormat = extension === '.png' ? 'png' : 'jpeg';
+    const processedBuffer = await sharp(file.buffer)
+      .rotate()
+      .resize(this.ocularImageTargetPixels, this.ocularImageTargetPixels, {
+        fit: sharp.fit.cover,
+        position: 'center',
+      })
+      .toFormat(
+        targetFormat,
+        targetFormat === 'png'
+          ? { compressionLevel: 9 }
+          : { mozjpeg: true, quality: 80 },
+      )
+      .toBuffer();
+
+    const uniqueToken = Buffer.from(
+      `${Date.now()}-${randomBytes(10).toString('hex')}`,
+      'utf8',
+    ).toString('base64url');
+    const filename = `${uniqueToken}${extension}`;
+    const destinationDir = join(this.ocularImagesDir, String(patientId));
+
+    await mkdir(destinationDir, { recursive: true });
+    const absolutePath = join(destinationDir, filename);
+    await writeFile(absolutePath, processedBuffer);
+
+    return join('images', 'foto_ocular', String(patientId), filename).replace(
+      /\\/g,
+      '/',
+    );
+  }
+
+  private async enrichOcularExamPayloadWithImages(
+    patientId: number,
+    payload: UpsertPatientOcularExamDto | undefined,
+    images?: OcularExamImageUploads,
+  ): Promise<UpsertPatientOcularExamDto> {
+    const nextPayload: UpsertPatientOcularExamDto = payload
+      ? { ...payload }
+      : {};
+
+    const [rightPath, leftPath] = await Promise.all([
+      this.storeOcularImage(patientId, images?.right ?? null),
+      this.storeOcularImage(patientId, images?.left ?? null),
+    ]);
+
+    if (rightPath) {
+      nextPayload.ojo_derecho = rightPath;
+    }
+
+    if (leftPath) {
+      nextPayload.ojo_izquierdo = leftPath;
+    }
+
+    return nextPayload;
   }
 
   private getDiseaseLabelFromKey(
@@ -1204,25 +1333,37 @@ export class HistoryService {
     record: paciente_examen_dental_presentes,
   ): PatientDentalPresenceExam {
     const source = record as Record<string, unknown>;
-    const presence: Record<string, boolean> = {};
+    const presence: Record<string, boolean | null> = {};
 
     DENTAL_EXAM_PRESENCE_FIELDS.forEach((field) => {
       const raw = source[field];
-      let numeric: number | null;
+      if (raw === null || typeof raw === 'undefined') {
+        presence[field] = null;
+        return;
+      }
+
+      if (typeof raw === 'boolean') {
+        presence[field] = raw;
+        return;
+      }
+
+      let numeric: number | null = null;
 
       if (typeof raw === 'number') {
         numeric = raw;
       } else if (typeof raw === 'string') {
         const parsed = Number(raw);
         numeric = Number.isFinite(parsed) ? parsed : null;
-      } else if (raw === null || raw === undefined) {
-        numeric = null;
       } else {
         const parsed = Number(raw as any);
         numeric = Number.isFinite(parsed) ? parsed : null;
       }
 
-      presence[field] = toBoolean(numeric);
+      if (numeric === null) {
+        presence[field] = null;
+      } else {
+        presence[field] = numeric === 1;
+      }
     });
 
     return {
@@ -1472,6 +1613,7 @@ export class HistoryService {
     const record = await this.prisma.paciente_examen_dental_presentes.create({
       data: {
         id_paciente: patientId,
+        ...this.createEmptyDentalPresenceState(),
         ...data,
         created_at: timestamp,
         updated_at: timestamp,
@@ -1560,13 +1702,20 @@ export class HistoryService {
   async createOcularExam(
     patientId: number,
     payload: UpsertPatientOcularExamDto,
+    images?: OcularExamImageUploads,
   ): Promise<PatientOcularExam> {
     const patient = await this.loadPatient(patientId);
     if (!patient) {
       throw new NotFoundException('Patient not found');
     }
 
-    const data = this.buildOcularExamData(payload);
+    const enrichedPayload = await this.enrichOcularExamPayloadWithImages(
+      patientId,
+      payload,
+      images,
+    );
+
+    const data = this.buildOcularExamData(enrichedPayload);
     if (!this.hasData(data)) {
       throw new BadRequestException(
         'No data provided to create ocular exam record.',
@@ -1591,6 +1740,7 @@ export class HistoryService {
     patientId: number,
     examId: number,
     payload: UpsertPatientOcularExamDto,
+    images?: OcularExamImageUploads,
   ): Promise<PatientOcularExam> {
     const record = await this.prisma.paciente_examen_ocular.findUnique({
       where: { id: examId },
@@ -1600,7 +1750,13 @@ export class HistoryService {
       throw new NotFoundException('Ocular exam not found');
     }
 
-    const data = this.buildOcularExamData(payload);
+    const enrichedPayload = await this.enrichOcularExamPayloadWithImages(
+      patientId,
+      payload,
+      images,
+    );
+
+    const data = this.buildOcularExamData(enrichedPayload);
     if (!this.hasData(data)) {
       throw new BadRequestException(
         'No data provided to update ocular exam record.',

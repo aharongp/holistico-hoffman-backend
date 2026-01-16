@@ -7,7 +7,11 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import type { MulterField } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import { HistoryService } from './history.service';
 import type { UpdateHistoryDto } from './dto/update-history.dto';
 import type {
@@ -15,6 +19,23 @@ import type {
   UpsertPatientDentalPresenceDto,
   UpsertPatientOcularExamDto,
 } from './dto/manage-dental-exams.dto';
+import { memoryStorage } from 'multer';
+import type { Express } from 'express';
+
+const OCULAR_EXAM_UPLOAD_FIELDS: MulterField[] = [
+  { name: 'rightEyeImage', maxCount: 1 },
+  { name: 'leftEyeImage', maxCount: 1 },
+];
+
+const OCULAR_EXAM_UPLOAD_INTERCEPTOR = FileFieldsInterceptor(
+  OCULAR_EXAM_UPLOAD_FIELDS,
+  {
+    storage: memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024,
+    },
+  },
+);
 
 @Controller('patients/history')
 export class HistoryController {
@@ -152,11 +173,20 @@ export class HistoryController {
   }
 
   @Post(':patientId/ocular-exams')
+  @UseInterceptors(OCULAR_EXAM_UPLOAD_INTERCEPTOR)
   createOcularExam(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Body() payload: UpsertPatientOcularExamDto,
+    @UploadedFiles()
+    files?: {
+      rightEyeImage?: Express.Multer.File[];
+      leftEyeImage?: Express.Multer.File[];
+    },
   ) {
-    return this.historyService.createOcularExam(patientId, payload);
+    return this.historyService.createOcularExam(patientId, payload, {
+      right: files?.rightEyeImage?.[0] ?? null,
+      left: files?.leftEyeImage?.[0] ?? null,
+    });
   }
 
   @Get(':patientId/ocular-exams/:examId')
@@ -168,12 +198,21 @@ export class HistoryController {
   }
 
   @Put(':patientId/ocular-exams/:examId')
+  @UseInterceptors(OCULAR_EXAM_UPLOAD_INTERCEPTOR)
   updateOcularExam(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Param('examId', ParseIntPipe) examId: number,
     @Body() payload: UpsertPatientOcularExamDto,
+    @UploadedFiles()
+    files?: {
+      rightEyeImage?: Express.Multer.File[];
+      leftEyeImage?: Express.Multer.File[];
+    },
   ) {
-    return this.historyService.updateOcularExam(patientId, examId, payload);
+    return this.historyService.updateOcularExam(patientId, examId, payload, {
+      right: files?.rightEyeImage?.[0] ?? null,
+      left: files?.leftEyeImage?.[0] ?? null,
+    });
   }
 
   @Delete(':patientId/ocular-exams/:examId')
