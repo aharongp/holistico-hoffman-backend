@@ -38,6 +38,51 @@ type UploadableAttachment = {
   size?: number | null;
 };
 
+const DEFAULT_DISEASE_LABELS = [
+  'Sarampion',
+  'Lechina',
+  'Escarlatina',
+  'Difteria',
+  'Tosferina',
+  'Paperas',
+  'Polio',
+  'Tetano',
+  'Disenteria',
+  'Parasitos',
+  'Meningitis',
+  'Asma',
+  'Acne',
+  'Forunculosis',
+  'Eczema',
+  'Psoriasis',
+  'Alergia',
+  'Sinusitis',
+  'Anginas',
+  'Bronquitis',
+  'Diabetes',
+  'Enfermedad Tiroidea',
+  'Enfermedad Cardiaca',
+  'Enfermedad Neurologica',
+  'Enfermedad Mental',
+  'Epilepsia',
+  'Litiasis Renal',
+  'Litiasis Vesicular',
+  'Hepatitis',
+  'Nefritis',
+  'Gastritis',
+  'Ulcera',
+  'Lepra',
+  'TBC',
+  'Sifilis',
+  'Blenorragia',
+  'Otra Venerea',
+  'Fiebre Reumatica',
+  'Artritis',
+  'Enfermedad Muscular',
+  'Gota',
+  'Cancer',
+];
+
 @Injectable()
 export class PatientService {
   constructor(
@@ -322,9 +367,78 @@ export class PatientService {
               ? ribbonId
               : null
             : null,
+          edad: null,
+          user_created: null,
+          created_at: null,
+          updated_at: null,
+          inicial: null,
+          estatura: null,
+          peso: null,
+          peso_ideal: null,
+          historia: null,
+          tipo_meta: null,
+          hilo: null,
+          lugar_nacimiento: null,
+          hora_nacimiento: null,
+          estado_civil: null,
+          profesion: null,
+          ocupacion: null,
+          empresa_direccion: null,
+          familiar_cercano: null,
+          familiar_cercano_parentesco: null,
+          familiar_cercano_telefono: null,
+          medico_tratante: null,
+          medico_tratante_especialidad: null,
+          medicacion: null,
+          id_pais: null,
+          id_tipo_cliente: null,
+          id_tipo_formacion: null,
+          interno: null,
+          porcentaje_fce: null,
+          prepaciente: null,
+          prepaciente_llave: null,
+          id_coach: null,
+          id_facilitador: null,
+          id_trainer: null,
+          id_empresa: null,
         },
         select: this.patientSelect,
       });
+
+      const antecedentExists = await prisma.paciente_antecedente.findFirst({
+        where: { id_paciente: createdPatient.id },
+        select: { id: true },
+      });
+
+      if (!antecedentExists) {
+        const timestamp = new Date();
+        await prisma.paciente_antecedente.create({
+          data: {
+            id_paciente: createdPatient.id,
+            created_at: timestamp,
+            updated_at: timestamp,
+          },
+        });
+      }
+
+      const diseaseExists = await prisma.paciente_enfermedad.findFirst({
+        where: { id_paciente: createdPatient.id },
+        select: { id: true },
+      });
+
+      if (!diseaseExists) {
+        const timestamp = new Date();
+        await prisma.paciente_enfermedad.createMany({
+          data: DEFAULT_DISEASE_LABELS.map((label) => ({
+            id_paciente: createdPatient.id,
+            enfermedad: label,
+            estatus: null,
+            inicio: null,
+            created_at: timestamp,
+            updated_at: timestamp,
+          })),
+        });
+      }
 
       return createdPatient;
     });
