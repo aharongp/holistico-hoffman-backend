@@ -9,12 +9,14 @@ import { PatientInstrumentsModule } from './patient-instruments/patient-instrume
 import { RedimensionModule } from './redimension/redimension.module';
 import { RibbonModule } from './ribbon/ribbon.module';
 import { PatientPunctualityModule } from './punctuality/patient-punctuality.module';
+import { CoachDiagnosticObservationModule } from './coach-diagnostic-observation/coach-diagnostic-observation.module';
 
 @Module({
   imports: [
     PatientModule,
     HistoryModule,
     ConsultationModule,
+    CoachDiagnosticObservationModule,
     VitalsModule,
     DentalModule,
     OcularModule,
