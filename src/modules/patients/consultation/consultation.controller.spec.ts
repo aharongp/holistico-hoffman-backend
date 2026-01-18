@@ -6,9 +6,22 @@ describe('ConsultationController', () => {
   let controller: ConsultationController;
 
   beforeEach(async () => {
+    const consultationServiceMock = {
+      create: jest.fn(),
+      findAll: jest.fn(),
+      findOne: jest.fn(),
+      update: jest.fn(),
+      remove: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       controllers: [ConsultationController],
-      providers: [ConsultationService],
+      providers: [
+        {
+          provide: ConsultationService,
+          useValue: consultationServiceMock,
+        },
+      ],
     }).compile();
 
     controller = module.get<ConsultationController>(ConsultationController);

@@ -6,6 +6,7 @@ import {
   Patch,
   Param,
   Delete,
+  Query,
 } from '@nestjs/common';
 import { ConsultationService } from './consultation.service';
 import { CreateConsultationDto } from './dto/create-consultation.dto';
@@ -21,8 +22,18 @@ export class ConsultationController {
   }
 
   @Get()
-  findAll() {
-    return this.consultationService.findAll();
+  findAll(@Query('patientId') patientId?: string) {
+    const parsed =
+      typeof patientId === 'string' && patientId.trim().length
+        ? Number(patientId)
+        : undefined;
+
+    const filter =
+      typeof parsed === 'number' && Number.isFinite(parsed)
+        ? parsed
+        : undefined;
+
+    return this.consultationService.findAll(filter);
   }
 
   @Get(':id')
