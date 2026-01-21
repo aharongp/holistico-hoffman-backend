@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import {
   BloodPressureRecord,
@@ -18,10 +18,186 @@ import { UpdateHeartRateDto } from './dto/update-heart-rate.dto';
 import { UpdateBodyMassDto } from './dto/update-body-mass.dto';
 import { UpdateGlycemiaDto } from './dto/update-glycemia.dto';
 import { UpdateBloodPressureDto } from './dto/update-blood-pressure.dto';
+import { existsSync } from 'fs';
+import { mkdir, unlink, writeFile } from 'fs/promises';
+import { extname, isAbsolute, join, relative, resolve } from 'path';
+import { randomBytes } from 'crypto';
+import sharp from 'sharp';
+
+type UploadedAttachmentFile = {
+  buffer: Buffer;
+  originalname?: string | null;
+  mimetype?: string | null;
+  size?: number | null;
+};
+
+type BodyMassImageUploads = {
+  face?: UploadedAttachmentFile | null;
+  front?: UploadedAttachmentFile | null;
+  profile?: UploadedAttachmentFile | null;
+  back?: UploadedAttachmentFile | null;
+  extra?: UploadedAttachmentFile | null;
+};
+
+type BodyMassImageType =
+  | 'foto_rostro'
+  | 'foto_cuerpo_frente'
+  | 'foto_cuerpo_perfil'
+  | 'foto_espalda_entero'
+  | 'foto_extra';
 
 @Injectable()
 export class VitalsService {
+  private readonly bodyMassImagesDir = (() => {
+    const candidates = [
+      join(process.cwd(), 'assets', 'images'),
+      join(process.cwd(), 'src', 'assets', 'images'),
+      join(process.cwd(), 'dist', 'assets', 'images'),
+      join(__dirname, '..', '..', '..', 'assets', 'images'),
+    ];
+
+    for (const candidate of candidates) {
+      if (existsSync(candidate)) {
+        return candidate;
+      }
+    }
+
+    return candidates[0];
+  })();
+
+  private readonly bodyMassImageTargetPixels = Math.max(
+    1,
+    Math.round((4 / 2.54) * 96),
+  );
+
   constructor(private readonly prisma: PrismaService) {}
+
+  private guessExtension(mime?: string | null): string | null {
+    const normalized = mime?.toLowerCase().trim();
+    switch (normalized) {
+      case 'image/jpeg':
+      case 'image/jpg':
+        return '.jpg';
+      case 'image/png':
+        return '.png';
+      default:
+        return null;
+    }
+  }
+
+  private sanitizeBodyMassString(value: unknown): string | null {
+    if (value === null || value === undefined) {
+      return null;
+    }
+    const trimmed = value.toString().trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  private resolveBodyMassImageAbsolutePath(relativePath: string): string {
+    const sanitized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
+    if (!sanitized) {
+      throw new BadRequestException('Ruta de imagen inválida.');
+    }
+
+    const withoutPrefix = sanitized.startsWith('images/')
+      ? sanitized.slice('images/'.length)
+      : sanitized;
+
+    const absolutePath = resolve(this.bodyMassImagesDir, withoutPrefix);
+    const diff = relative(this.bodyMassImagesDir, absolutePath);
+
+    if (diff.startsWith('..') || isAbsolute(diff)) {
+      throw new BadRequestException('Ruta de imagen inválida.');
+    }
+
+    return absolutePath;
+  }
+
+  private async storeBodyMassImage(
+    patientId: number,
+    imageType: BodyMassImageType,
+    file?: UploadedAttachmentFile | null,
+  ): Promise<string | undefined> {
+    if (!file || !file.buffer || file.buffer.length === 0) {
+      return undefined;
+    }
+
+    if (file.size && file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException(
+        'Las fotos corporales deben pesar máximo 10MB.',
+      );
+    }
+
+    if (file.mimetype) {
+      const normalizedMime = file.mimetype.toLowerCase();
+      const allowedMimes = new Set(['image/jpeg', 'image/jpg', 'image/png']);
+
+      if (!allowedMimes.has(normalizedMime)) {
+        throw new BadRequestException(
+          'Formato de imagen no permitido. Usa archivos JPG o PNG.',
+        );
+      }
+    }
+
+    let extension = extname(file.originalname ?? '').toLowerCase();
+    if (!extension || !/^\.[a-z0-9]{1,10}$/.test(extension)) {
+      extension = this.guessExtension(file.mimetype);
+    }
+
+    if (!extension) {
+      extension = '.jpg';
+    }
+
+    const targetFormat = extension === '.png' ? 'png' : 'jpeg';
+    const processedBuffer = await sharp(file.buffer)
+      .rotate()
+      .resize(this.bodyMassImageTargetPixels, this.bodyMassImageTargetPixels, {
+        fit: sharp.fit.cover,
+        position: 'center',
+      })
+      .toFormat(
+        targetFormat,
+        targetFormat === 'png'
+          ? { compressionLevel: 9 }
+          : { mozjpeg: true, quality: 80 },
+      )
+      .toBuffer();
+
+    const uniqueToken = Buffer.from(
+      `${Date.now()}-${randomBytes(10).toString('hex')}`,
+      'utf8',
+    ).toString('base64url');
+    const filename = `${uniqueToken}${extension}`;
+    const destinationDir = join(
+      this.bodyMassImagesDir,
+      imageType,
+      String(patientId),
+    );
+
+    await mkdir(destinationDir, { recursive: true });
+    const absolutePath = join(destinationDir, filename);
+    await writeFile(absolutePath, processedBuffer);
+
+    return join('images', imageType, String(patientId), filename).replace(
+      /\\/g,
+      '/',
+    );
+  }
+
+  private async deleteBodyMassImage(
+    relativePath: string | null | undefined,
+  ): Promise<void> {
+    if (!relativePath) {
+      return;
+    }
+
+    try {
+      const absolutePath = this.resolveBodyMassImageAbsolutePath(relativePath);
+      await unlink(absolutePath).catch(() => undefined);
+    } catch {
+      // Ignoramos errores de eliminación para no bloquear el flujo principal.
+    }
+  }
 
   private async ensurePatientExists(patientId: number): Promise<void> {
     const patient = await this.prisma.paciente.findUnique({
@@ -977,8 +1153,34 @@ export class VitalsService {
   async registerBodyMass(
     patientId: number,
     dto: CreateBodyMassDto,
+    images?: BodyMassImageUploads,
   ): Promise<NumericVitalRecord> {
     await this.ensurePatientExists(patientId);
+
+    const [facePath, frontPath, profilePath, backPath, extraPath] =
+      await Promise.all([
+        this.storeBodyMassImage(patientId, 'foto_rostro', images?.face ?? null),
+        this.storeBodyMassImage(
+          patientId,
+          'foto_cuerpo_frente',
+          images?.front ?? null,
+        ),
+        this.storeBodyMassImage(
+          patientId,
+          'foto_cuerpo_perfil',
+          images?.profile ?? null,
+        ),
+        this.storeBodyMassImage(
+          patientId,
+          'foto_espalda_entero',
+          images?.back ?? null,
+        ),
+        this.storeBodyMassImage(
+          patientId,
+          'foto_extra',
+          images?.extra ?? null,
+        ),
+      ]);
 
     const created = await this.prisma.paciente_masa_corporal.create({
       data: {
@@ -991,11 +1193,18 @@ export class VitalsService {
         cadera: dto.cadera ?? null,
         brazo_derecho: dto.brazoDerecho ?? null,
         muslo_derecho: dto.musloDerecho ?? null,
-        foto_rostro: dto.fotoRostro ?? null,
-        foto_cuerpo_frente: dto.fotoCuerpoFrente ?? null,
-        foto_cuerpo_perfil: dto.fotoCuerpoPerfil ?? null,
-        foto_espalda_entero: dto.fotoEspaldaEntero ?? null,
-        foto_extra: dto.fotoExtra ?? null,
+        foto_rostro:
+          facePath ?? this.sanitizeBodyMassString(dto.fotoRostro) ?? null,
+        foto_cuerpo_frente:
+          frontPath ?? this.sanitizeBodyMassString(dto.fotoCuerpoFrente) ?? null,
+        foto_cuerpo_perfil:
+          profilePath ??
+          this.sanitizeBodyMassString(dto.fotoCuerpoPerfil) ??
+            null,
+        foto_espalda_entero:
+          backPath ?? this.sanitizeBodyMassString(dto.fotoEspaldaEntero) ?? null,
+        foto_extra:
+          extraPath ?? this.sanitizeBodyMassString(dto.fotoExtra) ?? null,
         created_at: new Date(),
         updated_at: new Date(),
       },
@@ -1019,57 +1228,141 @@ export class VitalsService {
     patientId: number,
     recordId: number,
     dto: UpdateBodyMassDto,
+    images?: BodyMassImageUploads,
   ): Promise<NumericVitalRecord> {
     await this.ensurePatientExists(patientId);
 
     const existing = await this.prisma.paciente_masa_corporal.findFirst({
       where: { id: recordId, id_paciente: patientId },
+      select: {
+        id: true,
+        fecha: true,
+        peso: true,
+        cuello: true,
+        busto: true,
+        cintura: true,
+        cadera: true,
+        brazo_derecho: true,
+        muslo_derecho: true,
+        foto_rostro: true,
+        foto_cuerpo_frente: true,
+        foto_cuerpo_perfil: true,
+        foto_espalda_entero: true,
+        foto_extra: true,
+        created_at: true,
+        updated_at: true,
+      },
     });
 
     if (!existing) {
       throw new NotFoundException('Registro de masa corporal no encontrado');
     }
 
+    const [facePath, frontPath, profilePath, backPath, extraPath] =
+      await Promise.all([
+        this.storeBodyMassImage(patientId, 'foto_rostro', images?.face ?? null),
+        this.storeBodyMassImage(
+          patientId,
+          'foto_cuerpo_frente',
+          images?.front ?? null,
+        ),
+        this.storeBodyMassImage(
+          patientId,
+          'foto_cuerpo_perfil',
+          images?.profile ?? null,
+        ),
+        this.storeBodyMassImage(
+          patientId,
+          'foto_espalda_entero',
+          images?.back ?? null,
+        ),
+        this.storeBodyMassImage(
+          patientId,
+          'foto_extra',
+          images?.extra ?? null,
+        ),
+      ]);
+
+    const cleanupPaths: string[] = [];
+
+    const updateData: Record<string, any> = {
+      fecha: this.parseDateInput(dto.fecha),
+      peso:
+        dto.peso === undefined
+          ? undefined
+          : dto.peso === null
+            ? null
+            : String(dto.peso),
+      cuello: dto.cuello === undefined ? undefined : (dto.cuello ?? null),
+      busto: dto.busto === undefined ? undefined : (dto.busto ?? null),
+      cintura: dto.cintura === undefined ? undefined : (dto.cintura ?? null),
+      cadera: dto.cadera === undefined ? undefined : (dto.cadera ?? null),
+      brazo_derecho:
+        dto.brazoDerecho === undefined
+          ? undefined
+          : (dto.brazoDerecho ?? null),
+      muslo_derecho:
+        dto.musloDerecho === undefined
+          ? undefined
+          : (dto.musloDerecho ?? null),
+      updated_at: new Date(),
+    };
+
+    const applyImageUpdate = (
+      newPath: string | undefined,
+      dtoValue: string | null | undefined,
+      currentValue: string | null,
+      fieldName: BodyMassImageType,
+    ) => {
+      if (newPath !== undefined) {
+        updateData[fieldName] = newPath;
+        if (currentValue && currentValue !== newPath) {
+          cleanupPaths.push(currentValue);
+        }
+        return;
+      }
+
+      if (dtoValue === undefined) {
+        return;
+      }
+
+      const sanitized = this.sanitizeBodyMassString(dtoValue);
+      updateData[fieldName] = sanitized;
+
+      if (!sanitized && currentValue) {
+        cleanupPaths.push(currentValue);
+      }
+    };
+
+    applyImageUpdate(facePath, dto.fotoRostro, existing.foto_rostro, 'foto_rostro');
+    applyImageUpdate(
+      frontPath,
+      dto.fotoCuerpoFrente,
+      existing.foto_cuerpo_frente,
+      'foto_cuerpo_frente',
+    );
+    applyImageUpdate(
+      profilePath,
+      dto.fotoCuerpoPerfil,
+      existing.foto_cuerpo_perfil,
+      'foto_cuerpo_perfil',
+    );
+    applyImageUpdate(
+      backPath,
+      dto.fotoEspaldaEntero,
+      existing.foto_espalda_entero,
+      'foto_espalda_entero',
+    );
+    applyImageUpdate(
+      extraPath,
+      dto.fotoExtra,
+      existing.foto_extra,
+      'foto_extra',
+    );
+
     const updated = await this.prisma.paciente_masa_corporal.update({
       where: { id: recordId },
-      data: {
-        fecha: this.parseDateInput(dto.fecha),
-        peso:
-          dto.peso === undefined
-            ? undefined
-            : dto.peso === null
-              ? null
-              : String(dto.peso),
-        cuello: dto.cuello === undefined ? undefined : (dto.cuello ?? null),
-        busto: dto.busto === undefined ? undefined : (dto.busto ?? null),
-        cintura: dto.cintura === undefined ? undefined : (dto.cintura ?? null),
-        cadera: dto.cadera === undefined ? undefined : (dto.cadera ?? null),
-        brazo_derecho:
-          dto.brazoDerecho === undefined
-            ? undefined
-            : (dto.brazoDerecho ?? null),
-        muslo_derecho:
-          dto.musloDerecho === undefined
-            ? undefined
-            : (dto.musloDerecho ?? null),
-        foto_rostro:
-          dto.fotoRostro === undefined ? undefined : (dto.fotoRostro ?? null),
-        foto_cuerpo_frente:
-          dto.fotoCuerpoFrente === undefined
-            ? undefined
-            : (dto.fotoCuerpoFrente ?? null),
-        foto_cuerpo_perfil:
-          dto.fotoCuerpoPerfil === undefined
-            ? undefined
-            : (dto.fotoCuerpoPerfil ?? null),
-        foto_espalda_entero:
-          dto.fotoEspaldaEntero === undefined
-            ? undefined
-            : (dto.fotoEspaldaEntero ?? null),
-        foto_extra:
-          dto.fotoExtra === undefined ? undefined : (dto.fotoExtra ?? null),
-        updated_at: new Date(),
-      },
+      data: updateData,
       select: {
         id: true,
         fecha: true,
@@ -1078,6 +1371,12 @@ export class VitalsService {
         updated_at: true,
       },
     });
+
+    if (cleanupPaths.length) {
+      await Promise.all(
+        cleanupPaths.map((path) => this.deleteBodyMassImage(path)),
+      );
+    }
 
     return {
       id: updated.id,
@@ -1098,7 +1397,14 @@ export class VitalsService {
 
     const existing = await this.prisma.paciente_masa_corporal.findFirst({
       where: { id: recordId, id_paciente: patientId },
-      select: { id: true },
+      select: {
+        id: true,
+        foto_rostro: true,
+        foto_cuerpo_frente: true,
+        foto_cuerpo_perfil: true,
+        foto_espalda_entero: true,
+        foto_extra: true,
+      },
     });
 
     if (!existing) {
@@ -1108,6 +1414,14 @@ export class VitalsService {
     await this.prisma.paciente_masa_corporal.delete({
       where: { id: recordId },
     });
+
+    await Promise.all([
+      this.deleteBodyMassImage(existing.foto_rostro),
+      this.deleteBodyMassImage(existing.foto_cuerpo_frente),
+      this.deleteBodyMassImage(existing.foto_cuerpo_perfil),
+      this.deleteBodyMassImage(existing.foto_espalda_entero),
+      this.deleteBodyMassImage(existing.foto_extra),
+    ]);
   }
 
   async registerGlycemia(
@@ -1365,18 +1679,20 @@ export class VitalsService {
   async registerBodyMassByUser(
     userId: number,
     dto: CreateBodyMassDto,
+    images?: BodyMassImageUploads,
   ): Promise<NumericVitalRecord> {
     const patientId = await this.resolvePatientIdByUser(userId);
-    return this.registerBodyMass(patientId, dto);
+    return this.registerBodyMass(patientId, dto, images);
   }
 
   async updateBodyMassByUser(
     userId: number,
     recordId: number,
     dto: UpdateBodyMassDto,
+    images?: BodyMassImageUploads,
   ): Promise<NumericVitalRecord> {
     const patientId = await this.resolvePatientIdByUser(userId);
-    return this.updateBodyMass(patientId, recordId, dto);
+    return this.updateBodyMass(patientId, recordId, dto, images);
   }
 
   async deleteBodyMassByUser(userId: number, recordId: number): Promise<void> {

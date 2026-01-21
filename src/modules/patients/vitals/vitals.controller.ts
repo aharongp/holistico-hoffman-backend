@@ -1,13 +1,17 @@
 import {
+  Body,
   Controller,
+  Delete,
   Get,
   Param,
   ParseIntPipe,
-  Post,
-  Body,
   Patch,
-  Delete,
+  Post,
+  UploadedFiles,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
+import type { MulterField } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import { VitalsService } from './vitals.service';
 import { CreateVitalDto } from './dto/create-vital.dto';
 import { CreatePulseDto } from './dto/create-pulse.dto';
@@ -21,6 +25,26 @@ import { UpdateHeartRateDto } from './dto/update-heart-rate.dto';
 import { UpdateBodyMassDto } from './dto/update-body-mass.dto';
 import { UpdateGlycemiaDto } from './dto/update-glycemia.dto';
 import { UpdateBloodPressureDto } from './dto/update-blood-pressure.dto';
+import { memoryStorage } from 'multer';
+import type { Express } from 'express';
+
+const BODY_MASS_UPLOAD_FIELDS: MulterField[] = [
+  { name: 'fotoRostro', maxCount: 1 },
+  { name: 'fotoCuerpoFrente', maxCount: 1 },
+  { name: 'fotoCuerpoPerfil', maxCount: 1 },
+  { name: 'fotoEspaldaEntero', maxCount: 1 },
+  { name: 'fotoExtra', maxCount: 1 },
+];
+
+const BODY_MASS_UPLOAD_INTERCEPTOR = FileFieldsInterceptor(
+  BODY_MASS_UPLOAD_FIELDS,
+  {
+    storage: memoryStorage(),
+    limits: {
+      fileSize: 10 * 1024 * 1024,
+    },
+  },
+);
 
 @Controller('vitals')
 export class VitalsController {
@@ -136,28 +160,73 @@ export class VitalsController {
   }
 
   @Post('patient/:patientId/body-mass')
+  @UseInterceptors(BODY_MASS_UPLOAD_INTERCEPTOR)
   registerBodyMass(
     @Param('patientId', ParseIntPipe) patientId: number,
     @Body() dto: CreateBodyMassDto,
+    @UploadedFiles()
+    files?: {
+      fotoRostro?: Express.Multer.File[];
+      fotoCuerpoFrente?: Express.Multer.File[];
+      fotoCuerpoPerfil?: Express.Multer.File[];
+      fotoEspaldaEntero?: Express.Multer.File[];
+      fotoExtra?: Express.Multer.File[];
+    },
   ) {
-    return this.vitalsService.registerBodyMass(patientId, dto);
+    return this.vitalsService.registerBodyMass(patientId, dto, {
+      face: files?.fotoRostro?.[0] ?? null,
+      front: files?.fotoCuerpoFrente?.[0] ?? null,
+      profile: files?.fotoCuerpoPerfil?.[0] ?? null,
+      back: files?.fotoEspaldaEntero?.[0] ?? null,
+      extra: files?.fotoExtra?.[0] ?? null,
+    });
   }
 
   @Post('user/:userId/body-mass')
+  @UseInterceptors(BODY_MASS_UPLOAD_INTERCEPTOR)
   registerBodyMassByUser(
     @Param('userId', ParseIntPipe) userId: number,
     @Body() dto: CreateBodyMassDto,
+    @UploadedFiles()
+    files?: {
+      fotoRostro?: Express.Multer.File[];
+      fotoCuerpoFrente?: Express.Multer.File[];
+      fotoCuerpoPerfil?: Express.Multer.File[];
+      fotoEspaldaEntero?: Express.Multer.File[];
+      fotoExtra?: Express.Multer.File[];
+    },
   ) {
-    return this.vitalsService.registerBodyMassByUser(userId, dto);
+    return this.vitalsService.registerBodyMassByUser(userId, dto, {
+      face: files?.fotoRostro?.[0] ?? null,
+      front: files?.fotoCuerpoFrente?.[0] ?? null,
+      profile: files?.fotoCuerpoPerfil?.[0] ?? null,
+      back: files?.fotoEspaldaEntero?.[0] ?? null,
+      extra: files?.fotoExtra?.[0] ?? null,
+    });
   }
 
   @Patch('user/:userId/body-mass/:recordId')
+  @UseInterceptors(BODY_MASS_UPLOAD_INTERCEPTOR)
   updateBodyMassByUser(
     @Param('userId', ParseIntPipe) userId: number,
     @Param('recordId', ParseIntPipe) recordId: number,
     @Body() dto: UpdateBodyMassDto,
+    @UploadedFiles()
+    files?: {
+      fotoRostro?: Express.Multer.File[];
+      fotoCuerpoFrente?: Express.Multer.File[];
+      fotoCuerpoPerfil?: Express.Multer.File[];
+      fotoEspaldaEntero?: Express.Multer.File[];
+      fotoExtra?: Express.Multer.File[];
+    },
   ) {
-    return this.vitalsService.updateBodyMassByUser(userId, recordId, dto);
+    return this.vitalsService.updateBodyMassByUser(userId, recordId, dto, {
+      face: files?.fotoRostro?.[0] ?? null,
+      front: files?.fotoCuerpoFrente?.[0] ?? null,
+      profile: files?.fotoCuerpoPerfil?.[0] ?? null,
+      back: files?.fotoEspaldaEntero?.[0] ?? null,
+      extra: files?.fotoExtra?.[0] ?? null,
+    });
   }
 
   @Delete('user/:userId/body-mass/:recordId')
