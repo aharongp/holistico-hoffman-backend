@@ -7,8 +7,12 @@ import {
   Param,
   Delete,
   ParseIntPipe,
+  Query,
 } from '@nestjs/common';
-import { PatientInstrumentsService } from './patient-instruments.service';
+import {
+  AggregatedResultsDateOptions,
+  PatientInstrumentsService,
+} from './patient-instruments.service';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
 import { SubmitPatientInstrumentResponseDto } from './dto/submit-patient-instrument-response.dto';
@@ -52,15 +56,47 @@ export class PatientInstrumentsController {
   @Get('results/patient/:patientId')
   findAggregatedResultsByPatient(
     @Param('patientId', ParseIntPipe) patientId: number,
+    @Query() query?: Record<string, string | undefined>,
   ) {
+    const normalize = (value?: string): string | null =>
+      value?.trim?.() ? value.trim() : null;
+    const options: AggregatedResultsDateOptions = {
+      attitudinalDate: normalize(query?.attitudinalDate),
+      firmnessAdaptabilityDate: normalize(query?.firmnessAdaptabilityDate),
+      diagnosticsDate: normalize(query?.diagnosticsDate),
+      testsDate: normalize(query?.testsDate),
+      dailyReviewDate: normalize(query?.dailyReviewDate),
+      wellnessLifeDate: normalize(query?.wellnessLifeDate),
+      wellnessHealthDate: normalize(query?.wellnessHealthDate),
+      wellnessRegiflexDate: normalize(query?.wellnessRegiflexDate),
+    };
     return this.patientInstrumentsService.findAggregatedResultsByPatient(
       patientId,
+      options,
     );
   }
 
   @Get('results/user/:userId')
-  findAggregatedResultsByUser(@Param('userId', ParseIntPipe) userId: number) {
-    return this.patientInstrumentsService.findAggregatedResultsByUser(userId);
+  findAggregatedResultsByUser(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Query() query?: Record<string, string | undefined>,
+  ) {
+    const normalize = (value?: string): string | null =>
+      value?.trim?.() ? value.trim() : null;
+    const options: AggregatedResultsDateOptions = {
+      attitudinalDate: normalize(query?.attitudinalDate),
+      firmnessAdaptabilityDate: normalize(query?.firmnessAdaptabilityDate),
+      diagnosticsDate: normalize(query?.diagnosticsDate),
+      testsDate: normalize(query?.testsDate),
+      dailyReviewDate: normalize(query?.dailyReviewDate),
+      wellnessLifeDate: normalize(query?.wellnessLifeDate),
+      wellnessHealthDate: normalize(query?.wellnessHealthDate),
+      wellnessRegiflexDate: normalize(query?.wellnessRegiflexDate),
+    };
+    return this.patientInstrumentsService.findAggregatedResultsByUser(
+      userId,
+      options,
+    );
   }
 
   @Post(':id/responses')

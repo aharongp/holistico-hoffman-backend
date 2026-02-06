@@ -5,6 +5,7 @@ import {
   HeartRateRecoveryRecord,
   NumericVitalRecord,
   PatientVitalsSummary,
+  VitalPhoto,
 } from './entities/vital.entity';
 import { CreateVitalDto } from './dto/create-vital.dto';
 import { CreatePulseDto } from './dto/create-pulse.dto';
@@ -139,7 +140,7 @@ export class VitalsService {
       }
     }
 
-    let extension = extname(file.originalname ?? '').toLowerCase();
+    let extension: string | null = extname(file.originalname ?? '').toLowerCase();
     if (!extension || !/^\.[a-z0-9]{1,10}$/.test(extension)) {
       extension = this.guessExtension(file.mimetype);
     }
@@ -550,6 +551,120 @@ export class VitalsService {
       .filter((entry): entry is NumericVitalRecord => entry !== null);
   }
 
+  private mapBodyMassPhotos(entry: {
+    foto_rostro?: string | null;
+    foto_cuerpo_frente?: string | null;
+    foto_cuerpo_perfil?: string | null;
+    foto_espalda_entero?: string | null;
+    foto_extra?: string | null;
+  }): VitalPhoto[] {
+    const photos: VitalPhoto[] = [];
+
+    const pushPhoto = (
+      value: string | null | undefined,
+      type: BodyMassImageType,
+      label: string,
+    ) => {
+      const sanitized = this.sanitizeBodyMassString(value);
+      if (!sanitized) {
+        return;
+      }
+      photos.push({ type, label, path: sanitized });
+    };
+
+    pushPhoto(entry.foto_rostro, 'foto_rostro', 'Rostro');
+    pushPhoto(entry.foto_cuerpo_frente, 'foto_cuerpo_frente', 'Frente');
+    pushPhoto(entry.foto_cuerpo_perfil, 'foto_cuerpo_perfil', 'Perfil');
+    pushPhoto(entry.foto_espalda_entero, 'foto_espalda_entero', 'Espalda');
+    pushPhoto(entry.foto_extra, 'foto_extra', 'Extra');
+
+    return photos;
+  }
+
+  private mapBodyMassWeightRecords(
+    entries: Array<{
+      id: number;
+      fecha: Date | null;
+      peso: string | null;
+      created_at?: Date | null;
+      updated_at?: Date | null;
+      foto_rostro?: string | null;
+      foto_cuerpo_frente?: string | null;
+      foto_cuerpo_perfil?: string | null;
+      foto_espalda_entero?: string | null;
+      foto_extra?: string | null;
+    }>,
+  ): NumericVitalRecord[] {
+    return entries.map<NumericVitalRecord>((entry) => ({
+      id: entry.id,
+      recordedAt: this.resolveRecordedAt(
+        entry.fecha,
+        entry.updated_at,
+        entry.created_at,
+      ),
+      value: this.toNumber(entry.peso),
+      rawValue: entry.peso,
+      unit: 'kg',
+      source: 'body_mass',
+      photos: this.mapBodyMassPhotos(entry),
+    }));
+  }
+
+  private mapBodyMassIndexFromBodyMassRecords(
+    entries: Array<{
+      id: number;
+      fecha: Date | null;
+      peso: string | null;
+      created_at?: Date | null;
+      updated_at?: Date | null;
+      foto_rostro?: string | null;
+      foto_cuerpo_frente?: string | null;
+      foto_cuerpo_perfil?: string | null;
+      foto_espalda_entero?: string | null;
+      foto_extra?: string | null;
+    }> | null,
+    heightInMeters: number | null,
+  ): NumericVitalRecord[] {
+    if (!entries?.length || !heightInMeters || heightInMeters <= 0) {
+      return [];
+    }
+
+    const denominator = heightInMeters * heightInMeters;
+    if (denominator <= 0) {
+      return [];
+    }
+
+    return entries
+      .map<NumericVitalRecord | null>((entry) => {
+        const weightValue = this.toNumber(entry.peso);
+        if (weightValue === null) {
+          return null;
+        }
+
+        const bmi = weightValue / denominator;
+        if (!Number.isFinite(bmi)) {
+          return null;
+        }
+
+        const normalizedBmi = Number(bmi.toFixed(2));
+
+        return {
+          id: entry.id,
+          recordedAt: this.resolveRecordedAt(
+            entry.fecha,
+            entry.updated_at,
+            entry.created_at,
+          ),
+          value: normalizedBmi,
+          rawValue: normalizedBmi.toString(),
+          unit: 'kg/m²',
+          source: 'body_mass',
+          photos: this.mapBodyMassPhotos(entry),
+        } satisfies NumericVitalRecord;
+      })
+      .filter((entry): entry is NumericVitalRecord => entry !== null);
+  }
+
   private mapGlycemiaRecords(
     glycemiaEntries: Array<{
       id: number;
@@ -624,6 +739,7 @@ export class VitalsService {
       glycemiaEntries,
       bloodPressureEntries,
       heartRateEntries,
+      bodyMassEntries,
       weightEntries,
     ] = await Promise.all([
       this.prisma.paciente_consulta.findMany({
@@ -705,6 +821,22 @@ export class VitalsService {
         WHERE id_paciente = ${patientId}
         ORDER BY fecha DESC
       `,
+      this.prisma.paciente_masa_corporal.findMany({
+        where: { id_paciente: patientId },
+        orderBy: { fecha: 'desc' },
+        select: {
+          id: true,
+          fecha: true,
+          peso: true,
+          created_at: true,
+          updated_at: true,
+          foto_rostro: true,
+          foto_cuerpo_frente: true,
+          foto_cuerpo_perfil: true,
+          foto_espalda_entero: true,
+          foto_extra: true,
+        },
+      }),
       this.prisma.paciente_peso.findMany({
         where: { id_paciente: patientId },
         orderBy: { fecha: 'desc' },
@@ -721,6 +853,7 @@ export class VitalsService {
     return {
       weight: this.sortByDateDesc([
         ...this.mapConsultationWeightRecords(consultations),
+        ...this.mapBodyMassWeightRecords(bodyMassEntries),
         ...this.mapWeightTableRecords(weightEntries),
       ]),
       pulse: this.sortByDateDesc(
@@ -734,6 +867,10 @@ export class VitalsService {
         ...this.mapConsultationBodyMassIndexRecords(consultations),
         ...this.mapBodyMassIndexFromWeightRecords(
           weightEntries,
+          patientHeightInMeters,
+        ),
+        ...this.mapBodyMassIndexFromBodyMassRecords(
+          bodyMassEntries,
           patientHeightInMeters,
         ),
       ]),
@@ -1210,6 +1347,8 @@ export class VitalsService {
       },
     });
 
+    const photos = this.mapBodyMassPhotos(created);
+
     return {
       id: created.id,
       recordedAt: this.resolveRecordedAt(
@@ -1221,6 +1360,7 @@ export class VitalsService {
       rawValue: created.peso,
       unit: 'kg',
       source: 'body_mass',
+      photos,
     };
   }
 
@@ -1369,6 +1509,11 @@ export class VitalsService {
         peso: true,
         created_at: true,
         updated_at: true,
+        foto_rostro: true,
+        foto_cuerpo_frente: true,
+        foto_cuerpo_perfil: true,
+        foto_espalda_entero: true,
+        foto_extra: true,
       },
     });
 
@@ -1377,6 +1522,8 @@ export class VitalsService {
         cleanupPaths.map((path) => this.deleteBodyMassImage(path)),
       );
     }
+
+    const photos = this.mapBodyMassPhotos(updated);
 
     return {
       id: updated.id,
@@ -1389,6 +1536,7 @@ export class VitalsService {
       rawValue: updated.peso,
       unit: 'kg',
       source: 'body_mass',
+      photos,
     };
   }
 

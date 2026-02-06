@@ -14,6 +14,8 @@ import {
   AttitudinalStrengthResult,
   DailyReviewResult,
   HealthDiagnosticResult,
+  HealthDiagnosticResponse,
+  FirmnessAdaptabilityResult,
   PatientAggregatedResults,
   RegiflexEntry,
   RegiflexResult,
@@ -38,6 +40,17 @@ import {
   resultadoTest,
   revistaDiaria,
 } from './utils/formulas.util';
+
+export type AggregatedResultsDateOptions = {
+  attitudinalDate?: string | null;
+  firmnessAdaptabilityDate?: string | null;
+  diagnosticsDate?: string | null;
+  testsDate?: string | null;
+  dailyReviewDate?: string | null;
+  wellnessLifeDate?: string | null;
+  wellnessHealthDate?: string | null;
+  wellnessRegiflexDate?: string | null;
+};
 
 @Injectable()
 export class PatientInstrumentsService {
@@ -450,6 +463,7 @@ export class PatientInstrumentsService {
 
   async findAggregatedResultsByPatient(
     patientId: number,
+    options?: AggregatedResultsDateOptions,
   ): Promise<PatientAggregatedResults> {
     await this.ensurePatientExists(patientId);
 
@@ -474,6 +488,136 @@ export class PatientInstrumentsService {
     });
     const dailyInstrumentId = dailyInstrument?.id ?? null;
 
+    const [
+      attitudinalDates,
+      diagnosticsDates,
+      testsDates,
+      firmnessAdaptabilityDates,
+      dailyReviewDates,
+      wellnessLifeDates,
+      wellnessHealthDates,
+      wellnessRegiflexDates,
+    ] = await Promise.all([
+      this.collectAvailableDates({
+        id_paciente: patientId,
+        id_criterio: 3,
+        evaluado: 0,
+      }),
+      this.collectAvailableDates({
+        id_paciente: patientId,
+        tipo_instrumento: 'diagnostico-salud',
+        evaluado: 0,
+      }),
+      this.collectAvailableDates({
+        id_paciente: patientId,
+        tipo_instrumento: {
+          in: [
+            'test-estres',
+            'test-salud',
+            'test-biologica',
+            'test-codependencia',
+          ],
+        },
+        evaluado: 0,
+      }),
+      this.collectAvailableDates({
+        id_paciente: patientId,
+        tipo_instrumento: 'test-salud',
+        id_tema: 139,
+        evaluado: 0,
+      }),
+      this.collectAvailableDates({
+        id_paciente: patientId,
+        tipo_instrumento: {
+          in: ['revista-diaria-interno', 'revista-diaria-externo'],
+        },
+        evaluado: 0,
+        ...(dailyInstrumentId ? { id_instrumento: dailyInstrumentId } : {}),
+      }),
+      this.collectAvailableDates({
+        id_paciente: patientId,
+        tipo_instrumento: 'rueda-vida',
+        evaluado: 0,
+      }),
+      this.collectAvailableDates({
+        id_paciente: patientId,
+        tipo_instrumento: 'rueda-salud',
+        evaluado: 0,
+      }),
+      this.collectAvailableDates({
+        id_paciente: patientId,
+        tipo_instrumento: 'regiflex-flexirigi',
+        id_tema: 132,
+        evaluado: 0,
+      }),
+    ]);
+
+    const attitudinalSelected = this.resolveSelectedSectionDate(
+      options?.attitudinalDate ?? null,
+      attitudinalDates,
+    );
+    const diagnosticsSelected = this.resolveSelectedSectionDate(
+      options?.diagnosticsDate ?? null,
+      diagnosticsDates,
+    );
+    const testsSelected = this.resolveSelectedSectionDate(
+      options?.testsDate ?? null,
+      testsDates,
+    );
+    const firmnessAdaptabilitySelected = this.resolveSelectedSectionDate(
+      options?.firmnessAdaptabilityDate ?? null,
+      firmnessAdaptabilityDates,
+    );
+    const dailyReviewSelected = this.resolveSelectedSectionDate(
+      options?.dailyReviewDate ?? null,
+      dailyReviewDates,
+    );
+    const wellnessLifeSelected = this.resolveSelectedSectionDate(
+      options?.wellnessLifeDate ?? null,
+      wellnessLifeDates,
+    );
+    const wellnessHealthSelected = this.resolveSelectedSectionDate(
+      options?.wellnessHealthDate ?? null,
+      wellnessHealthDates,
+    );
+    const wellnessRegiflexSelected = this.resolveSelectedSectionDate(
+      options?.wellnessRegiflexDate ?? null,
+      wellnessRegiflexDates,
+    );
+
+    const diagnosticsRange = diagnosticsSelected
+      ? this.buildDateRange(diagnosticsSelected)
+      : null;
+    const testsRange = testsSelected ? this.buildDateRange(testsSelected) : null;
+    const firmnessAdaptabilityRange = firmnessAdaptabilitySelected
+      ? this.buildDateRange(firmnessAdaptabilitySelected)
+      : null;
+    const dailyReviewRange = dailyReviewSelected
+      ? this.buildDateRange(dailyReviewSelected)
+      : null;
+    const wellnessLifeRange = wellnessLifeSelected
+      ? this.buildDateRange(wellnessLifeSelected)
+      : null;
+    const wellnessHealthRange = wellnessHealthSelected
+      ? this.buildDateRange(wellnessHealthSelected)
+      : null;
+    const wellnessRegiflexRange = wellnessRegiflexSelected
+      ? this.buildDateRange(wellnessRegiflexSelected)
+      : null;
+
+    const diagnosticsFilter = this.buildDateFilter(diagnosticsRange, 'p');
+    const firmnessAdaptabilityFilter = this.buildDateFilter(
+      firmnessAdaptabilityRange,
+      'p',
+    );
+    const dailyFilter = this.buildDateFilter(dailyReviewRange, 'p');
+    const wellnessLifeFilter = this.buildDateFilter(wellnessLifeRange, 'p');
+    const wellnessHealthFilter = this.buildDateFilter(wellnessHealthRange, 'p');
+    const wellnessRegiflexFilter = this.buildDateFilter(
+      wellnessRegiflexRange,
+      'p',
+    );
+
     const strengthsRaw = await this.prisma.$queryRaw<
       Array<{
         tema: string | null;
@@ -493,31 +637,114 @@ export class PatientInstrumentsService {
       ORDER BY tema
     `;
 
-    const strengths: AttitudinalStrengthResult[] = strengthsRaw
-      .map((row) => {
-        const sum = this.toNumeric(row.suma);
-        const count = this.toNumeric(row.cantidad);
-        if (!count) {
-          return null;
+    const mapStrengthRows = (
+      rows: Array<{
+        tema: string | null;
+        id_tema: number | null;
+        suma: number | null;
+        cantidad: number | null;
+      }>,
+    ): AttitudinalStrengthResult[] =>
+      rows
+        .map((row) => {
+          const sum = this.toNumeric(row.suma);
+          const count = this.toNumeric(row.cantidad);
+          if (!count) {
+            return null;
+          }
+
+          const average = sum / count;
+          const percentage = Math.min(Math.max(average * 20, 0), 100);
+
+          return {
+            topicId: row.id_tema ?? null,
+            topic: row.tema ?? null,
+            sum: Number(sum.toFixed(2)),
+            questionCount: count,
+            average: Number(average.toFixed(2)),
+            percentage: Number(percentage.toFixed(2)),
+            colorClass: colorValor(average),
+            ponderation: ponderacion(percentage),
+          } satisfies AttitudinalStrengthResult;
+        })
+        .filter((item): item is AttitudinalStrengthResult => Boolean(item));
+
+    const attitudinalStrengths = mapStrengthRows(strengthsRaw);
+
+    const attitudinalSummary = buildAttitudinalSummary(attitudinalStrengths);
+
+    const firmnessAdaptabilityRaw = await this.prisma.$queryRaw<
+      Array<{ topico: string | null; suma: number | null }>
+    >`
+      SELECT
+        p.topico,
+        SUM(CAST(p.respuesta AS DOUBLE PRECISION)) AS suma
+      FROM paciente_instrumento_respuesta p
+      WHERE p.id_paciente = ${patientId}
+        AND p.tipo_instrumento = 'test-salud'
+        AND p.id_tema = 139
+        AND p.evaluado = 0
+        ${firmnessAdaptabilityFilter}
+      GROUP BY p.topico
+    `;
+
+    let firmnessAdaptability: FirmnessAdaptabilityResult | null = null;
+    if (firmnessAdaptabilityRaw.length) {
+      const normalizeTopic = (value: string | null | undefined): string =>
+        value
+          ? value
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .trim()
+              .toLowerCase()
+          : '';
+
+      const findSum = (needle: string): number => {
+        const entry = firmnessAdaptabilityRaw.find(
+          (row) => normalizeTopic(row.topico) === needle,
+        );
+        return this.toNumeric(entry?.suma);
+      };
+
+      const firmnessSum = findSum('firmeza');
+      const adaptabilitySum = findSum('adaptabilidad');
+      const total = firmnessSum + adaptabilitySum;
+
+      if (total > 0) {
+        const firmnessPercentage = Number(
+          ((firmnessSum / total) * 100).toFixed(2),
+        );
+        const adaptabilityPercentage = Number(
+          ((adaptabilitySum / total) * 100).toFixed(2),
+        );
+        const difference = Number(
+          Math.abs(firmnessPercentage - adaptabilityPercentage).toFixed(2),
+        );
+
+        let balance: FirmnessAdaptabilityResult['balance'] = 'balanced';
+        if (firmnessSum > adaptabilitySum) {
+          balance = 'firmness';
+        } else if (adaptabilitySum > firmnessSum) {
+          balance = 'adaptability';
         }
 
-        const average = sum / count;
-        const percentage = Math.min(Math.max(average * 20, 0), 100);
-
-        return {
-          topicId: row.id_tema ?? null,
-          topic: row.tema ?? null,
-          sum: Number(sum.toFixed(2)),
-          questionCount: count,
-          average: Number(average.toFixed(2)),
-          percentage: Number(percentage.toFixed(2)),
-          colorClass: colorValor(average),
-          ponderation: ponderacion(percentage),
-        } satisfies AttitudinalStrengthResult;
-      })
-      .filter((item): item is AttitudinalStrengthResult => Boolean(item));
-
-    const attitudinalSummary = buildAttitudinalSummary(strengths);
+        firmnessAdaptability = {
+          firmness: {
+            label: 'Firmeza',
+            sum: Number(firmnessSum.toFixed(2)),
+            percentage: firmnessPercentage,
+          },
+          adaptability: {
+            label: 'Adaptabilidad',
+            sum: Number(adaptabilitySum.toFixed(2)),
+            percentage: adaptabilityPercentage,
+          },
+          total: Number(total.toFixed(2)),
+          difference,
+          balance,
+        };
+      }
+    }
 
     const diagnosticsRaw = await this.prisma.$queryRaw<
       Array<{ topico: string | null; id: number | null; suma: number | null }>
@@ -531,9 +758,293 @@ export class PatientInstrumentsService {
       INNER JOIN topico t ON q.id_topico = t.id
       WHERE p.id_paciente = ${patientId} AND p.tipo_instrumento = 'diagnostico-salud'
         AND p.evaluado = 0
+        ${diagnosticsFilter}
       GROUP BY t.nombre, t.id
       ORDER BY t.nombre
     `;
+
+    const diagnosticsResponsesRaw = await this.prisma.$queryRaw<
+      Array<{
+        topico: string | null;
+        id: number | null;
+        pregunta: string | null;
+        respuesta: string | null;
+        respuesta_texto: string | null;
+        pregunta_id: number | null;
+      }>
+    >`
+      SELECT
+        t.nombre AS topico,
+        t.id AS id,
+        p.pregunta AS pregunta,
+        p.respuesta AS respuesta,
+        q.id AS pregunta_id,
+        txt.nombre AS respuesta_texto
+      FROM paciente_instrumento_respuesta p
+      INNER JOIN pregunta q ON p.id_pregunta = q.id
+      INNER JOIN topico t ON q.id_topico = t.id
+      LEFT JOIN LATERAL (
+        SELECT nombre
+        FROM respuesta r
+        WHERE r.id_pregunta = q.id
+          AND (
+            (r.valor IS NOT NULL AND TRIM(r.valor) = TRIM(p.respuesta))
+            OR (r.nombre IS NOT NULL AND LOWER(TRIM(r.nombre)) = LOWER(TRIM(p.respuesta)))
+          )
+        ORDER BY r.id
+        LIMIT 1
+      ) AS txt ON TRUE
+      WHERE p.id_paciente = ${patientId} AND p.tipo_instrumento = 'diagnostico-salud'
+        AND p.evaluado = 0
+        ${diagnosticsFilter}
+      ORDER BY t.nombre, COALESCE(p.orden, q.orden, p.id)
+    `;
+
+    const buildAnswerLookupKeys = (
+      ...values: Array<string | null | undefined>
+    ): string[] => {
+      const keys = new Set<string>();
+      values.forEach((value) => {
+        if (value === null || value === undefined) {
+          return;
+        }
+        const base = String(value).trim();
+        if (!base.length) {
+          return;
+        }
+        keys.add(base);
+        keys.add(base.toLowerCase());
+        const numericCandidate = Number(base.replace(',', '.'));
+        if (!Number.isNaN(numericCandidate)) {
+          keys.add(String(numericCandidate));
+          keys.add(numericCandidate.toFixed(0));
+          keys.add(numericCandidate.toFixed(1));
+        }
+      });
+      return Array.from(keys).filter((item) => item.length > 0);
+    };
+
+    const answerLookupByQuestion = new Map<number, Map<string, string>>();
+    const questionIds = Array.from(
+      new Set(
+        diagnosticsResponsesRaw
+          .map((row) => this.toNumeric(row.pregunta_id))
+          .filter((value): value is number => value !== null),
+      ),
+    );
+
+    if (questionIds.length) {
+      const answerOptions = await this.prisma.respuesta.findMany({
+        where: { id_pregunta: { in: questionIds } },
+        select: { id_pregunta: true, valor: true, nombre: true },
+      });
+
+      const pushLookupKey = (lookup: Map<string, string>, key: string, label: string) => {
+        if (!key.length) {
+          return;
+        }
+        if (!lookup.has(key)) {
+          lookup.set(key, label);
+        }
+        const lower = key.toLowerCase();
+        if (!lookup.has(lower)) {
+          lookup.set(lower, label);
+        }
+      };
+
+      answerOptions.forEach((option) => {
+        const questionId = this.toNumeric(option.id_pregunta);
+        if (questionId === null) {
+          return;
+        }
+        const label = option.nombre?.trim();
+        if (!label?.length) {
+          return;
+        }
+
+        const lookup = answerLookupByQuestion.get(questionId) ?? new Map<string, string>();
+        const keys = buildAnswerLookupKeys(option.valor, option.nombre);
+
+        const rawValue = option.valor?.trim() ?? null;
+        if (rawValue?.length) {
+          keys.push(rawValue);
+          const normalizedValue = rawValue.replace(',', '.');
+          keys.push(normalizedValue);
+          keys.push(normalizedValue.replace(/^0+(?=\d)/, ''));
+        }
+
+        keys.forEach((key) => {
+          const normalizedKey = key.trim();
+          if (!normalizedKey.length) {
+            return;
+          }
+          pushLookupKey(lookup, normalizedKey, label);
+        });
+
+        answerLookupByQuestion.set(questionId, lookup);
+      });
+    }
+
+    const normalizeQuestionLabel = (value: string | null): string => {
+      if (!value) {
+        return '';
+      }
+
+      const cleaned = value
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[¿?]/g, ' ')
+        .replace(/\busted\b/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+
+      return cleaned;
+    };
+
+    const mapNumericAnswerHeuristic = (
+      normalizedQuestion: string,
+      value: string,
+    ): string | null => {
+      const numeric = Number(value.replace(',', '.'));
+      if (!Number.isFinite(numeric)) {
+        return null;
+      }
+
+      if (normalizedQuestion.startsWith('siente ')) {
+        return numeric >= 2 ? 'Sí' : 'No';
+      }
+
+      const likertMap: Record<number, string> = {
+        0: 'Nunca',
+        1: 'Casi nunca',
+        2: 'A veces',
+        3: 'Frecuentemente',
+        4: 'Casi siempre',
+        5: 'Siempre',
+      };
+
+      const rounded = Math.round(numeric);
+      return likertMap[rounded] ?? null;
+    };
+
+    const buildDiagnosticKey = (id: number | null, name: string | null) => {
+      if (id !== null) {
+        return `id:${id}`;
+      }
+      if (name && name.trim().length) {
+        return `name:${name.trim().toLowerCase()}`;
+      }
+      return 'unknown';
+    };
+
+    const processedResponses = diagnosticsResponsesRaw.map((row) => {
+      const questionId = this.toNumeric(row.pregunta_id);
+      const question = row.pregunta?.trim() ?? null;
+      const normalizedQuestion = normalizeQuestionLabel(question);
+      const diagnosticKey = buildDiagnosticKey(row.id ?? null, row.topico ?? null);
+      const lookupOptions =
+        questionId !== null ? answerLookupByQuestion.get(questionId) : undefined;
+      const lookupKeys = buildAnswerLookupKeys(row.respuesta, row.respuesta_texto);
+
+      if (row.respuesta) {
+        const trimmed = row.respuesta.trim();
+        if (trimmed.length) {
+          lookupKeys.push(trimmed);
+          const normalizedNumeric = trimmed.replace(',', '.');
+          lookupKeys.push(normalizedNumeric);
+          lookupKeys.push(normalizedNumeric.replace(/^0+(?=\d)/, ''));
+        }
+      }
+
+      let resolvedAnswer: string | null = null;
+      if (lookupOptions && lookupKeys.length) {
+        for (const lookupKey of lookupKeys) {
+          const candidate = lookupOptions.get(lookupKey);
+          if (candidate) {
+            resolvedAnswer = candidate;
+            break;
+          }
+        }
+      }
+
+      if (!resolvedAnswer?.trim().length) {
+        resolvedAnswer = row.respuesta_texto?.trim() ?? null;
+      }
+      if (!resolvedAnswer?.trim().length) {
+        resolvedAnswer = row.respuesta?.trim() ?? null;
+      }
+
+      const answer = resolvedAnswer?.trim() ?? null;
+
+      return {
+        diagnosticKey,
+        question,
+        normalizedQuestion,
+        answer,
+      };
+    });
+
+    const numericPattern = /^-?\d+(?:[.,]\d+)?$/;
+    const textualAnswerByQuestion = new Map<string, string>();
+
+    processedResponses.forEach((item) => {
+      if (!item.normalizedQuestion || !item.answer) {
+        return;
+      }
+      if (!numericPattern.test(item.answer)) {
+        textualAnswerByQuestion.set(item.normalizedQuestion, item.answer);
+      }
+    });
+
+    const responsesByDiagnostic = processedResponses.reduce(
+      (acc, item) => {
+        if (!item.answer) {
+          return acc;
+        }
+
+        let answer = item.answer;
+        if (numericPattern.test(answer)) {
+          const fallback = textualAnswerByQuestion.get(item.normalizedQuestion);
+          if (fallback?.trim().length) {
+            answer = fallback.trim();
+          } else {
+            const heuristic = mapNumericAnswerHeuristic(item.normalizedQuestion, answer);
+            if (heuristic) {
+              answer = heuristic;
+            }
+          }
+        }
+
+        answer = answer.trim();
+        if (!answer.length) {
+          return acc;
+        }
+
+        const current = acc.get(item.diagnosticKey) ?? [];
+        const existingIndex = current.findIndex(
+          (entry) =>
+            (entry.question ?? '').toLowerCase() === (item.question ?? '').toLowerCase(),
+        );
+
+        const isNumericAnswer = numericPattern.test(item.answer);
+        const newEntry: HealthDiagnosticResponse = { question: item.question, answer };
+
+        if (existingIndex >= 0) {
+          const existing = current[existingIndex];
+          const existingIsNumeric = numericPattern.test(existing.answer ?? '');
+          if (!existing.answer || (existingIsNumeric && !isNumericAnswer)) {
+            current[existingIndex] = newEntry;
+          }
+        } else {
+          current.push(newEntry);
+        }
+
+        acc.set(item.diagnosticKey, current);
+        return acc;
+      },
+      new Map<string, HealthDiagnosticResponse[]>(),
+    );
 
     const diagnostics: HealthDiagnosticResult[] = diagnosticsRaw.map((row) => {
       const result = diagnosticoSalud(
@@ -541,18 +1052,23 @@ export class PatientInstrumentsService {
         row.topico ?? null,
         this.toNumeric(row.suma),
       );
+      const responseKey = buildDiagnosticKey(row.id ?? null, row.topico ?? null);
       return {
         ...result,
         diagnostic: row.topico ?? result.diagnostic,
         total: Number(result.total.toFixed(2)),
+        responses: responsesByDiagnostic.get(responseKey) ?? [],
       } satisfies HealthDiagnosticResult;
     });
 
-    const stressSum = await this.sumNumericResponses({
-      id_paciente: patientId,
-      tipo_instrumento: 'test-estres',
-      evaluado: 0,
-    });
+    const stressSum = await this.sumNumericResponses(
+      {
+        id_paciente: patientId,
+        tipo_instrumento: 'test-estres',
+        evaluado: 0,
+      },
+      { dateRange: testsRange },
+    );
     const healthSum = await this.sumNumericResponses(
       {
         id_paciente: patientId,
@@ -560,18 +1076,24 @@ export class PatientInstrumentsService {
         id_tema: 55,
         evaluado: 0,
       },
-      { min: 0, max: 100 },
+      { min: 0, max: 100, dateRange: testsRange },
     );
-    const biologicalAgeSum = await this.sumNumericResponses({
-      id_paciente: patientId,
-      tipo_instrumento: 'test-biologica',
-      evaluado: 0,
-    });
-    const codependencySum = await this.sumNumericResponses({
-      id_paciente: patientId,
-      tipo_instrumento: 'test-codependencia',
-      evaluado: 0,
-    });
+    const biologicalAgeSum = await this.sumNumericResponses(
+      {
+        id_paciente: patientId,
+        tipo_instrumento: 'test-biologica',
+        evaluado: 0,
+      },
+      { dateRange: testsRange },
+    );
+    const codependencySum = await this.sumNumericResponses(
+      {
+        id_paciente: patientId,
+        tipo_instrumento: 'test-codependencia',
+        evaluado: 0,
+      },
+      { dateRange: testsRange },
+    );
 
     const tests: Record<string, TestResult | null> = {
       stress:
@@ -612,6 +1134,7 @@ export class PatientInstrumentsService {
       WHERE p.id_paciente = ${patientId}
         AND p.tipo_instrumento = 'rueda-vida'
         AND p.evaluado = 0
+        ${wellnessLifeFilter}
       GROUP BY t.nombre
       ORDER BY t.nombre
     `;
@@ -636,6 +1159,7 @@ export class PatientInstrumentsService {
       WHERE p.id_paciente = ${patientId}
         AND p.tipo_instrumento = 'rueda-salud'
         AND p.evaluado = 0
+        ${wellnessHealthFilter}
       GROUP BY t.nombre
       ORDER BY t.nombre
     `;
@@ -663,6 +1187,7 @@ export class PatientInstrumentsService {
       WHERE p.id_paciente = ${patientId}
         AND p.tipo_instrumento = 'regiflex-flexirigi'
         AND p.evaluado = 0
+        ${wellnessRegiflexFilter}
         AND p.id_tema = 132
       GROUP BY p.respuesta
       ORDER BY p.respuesta
@@ -717,6 +1242,7 @@ export class PatientInstrumentsService {
             AND p.tipo_instrumento IN ('revista-diaria-interno', 'revista-diaria-externo')
             AND p.id_instrumento = ${dailyInstrumentId}
             AND p.evaluado = 0
+            ${dailyFilter}
           GROUP BY t.id, t.nombre
           ORDER BY t.nombre
         `
@@ -734,9 +1260,10 @@ export class PatientInstrumentsService {
 
     return {
       attitudinal: {
-        strengths,
+        strengths: attitudinalStrengths,
         summary: attitudinalSummary,
       },
+      firmnessAdaptability,
       health: {
         diagnostics,
         tests,
@@ -747,14 +1274,49 @@ export class PatientInstrumentsService {
         wheelOfHealth,
         regiflex,
       },
+      metadata: {
+        attitudinal: {
+          availableDates: attitudinalDates,
+          selectedDate: attitudinalSelected,
+        },
+        firmnessAdaptability: {
+          availableDates: firmnessAdaptabilityDates,
+          selectedDate: firmnessAdaptabilitySelected,
+        },
+        diagnostics: {
+          availableDates: diagnosticsDates,
+          selectedDate: diagnosticsSelected,
+        },
+        tests: {
+          availableDates: testsDates,
+          selectedDate: testsSelected,
+        },
+        dailyReview: {
+          availableDates: dailyReviewDates,
+          selectedDate: dailyReviewSelected,
+        },
+        wellnessLife: {
+          availableDates: wellnessLifeDates,
+          selectedDate: wellnessLifeSelected,
+        },
+        wellnessHealth: {
+          availableDates: wellnessHealthDates,
+          selectedDate: wellnessHealthSelected,
+        },
+        wellnessRegiflex: {
+          availableDates: wellnessRegiflexDates,
+          selectedDate: wellnessRegiflexSelected,
+        },
+      },
     } satisfies PatientAggregatedResults;
   }
 
   async findAggregatedResultsByUser(
     userId: number,
+    options?: AggregatedResultsDateOptions,
   ): Promise<PatientAggregatedResults> {
     const patientId = await this.resolvePatientIdByUser(userId);
-    return this.findAggregatedResultsByPatient(patientId);
+    return this.findAggregatedResultsByPatient(patientId, options);
   }
 
   async submitResponses(
@@ -1233,12 +1795,80 @@ export class PatientInstrumentsService {
     return age >= 0 ? age : null;
   }
 
+  private async collectAvailableDates(
+    where: Prisma.paciente_instrumento_respuestaWhereInput,
+  ): Promise<string[]> {
+    const rows = await this.prisma.paciente_instrumento_respuesta.findMany({
+      where: {
+        AND: [where, { fecha: { not: null } }],
+      },
+      select: { fecha: true },
+      orderBy: { fecha: 'desc' },
+    });
+
+    const seen = new Set<string>();
+    rows.forEach((row) => {
+      if (!row.fecha) {
+        return;
+      }
+      const formatted = this.formatDateOnly(row.fecha);
+      if (formatted) {
+        seen.add(formatted);
+      }
+    });
+
+    return Array.from(seen).sort((a, b) => (a === b ? 0 : a > b ? -1 : 1));
+  }
+
+  private resolveSelectedSectionDate(
+    requested: string | null | undefined,
+    availableDates: string[],
+  ): string | null {
+    const normalized = requested ? this.normalizeDate(requested) : null;
+    const requestedDate = normalized
+      ? this.formatDateOnly(normalized)
+      : null;
+
+    if (requestedDate && availableDates.includes(requestedDate)) {
+      return requestedDate;
+    }
+
+    return availableDates[0] ?? null;
+  }
+
+  private buildDateFilter(
+    range: { start: Date; end: Date } | null,
+    alias?: string,
+  ): Prisma.Sql {
+    if (!range) {
+      return Prisma.sql``;
+    }
+
+    const column = alias ? `${alias}.fecha` : 'fecha';
+    return Prisma.sql`AND ${Prisma.raw(column)} >= ${range.start} AND ${Prisma.raw(column)} < ${range.end}`;
+  }
+
   private async sumNumericResponses(
     where: Prisma.paciente_instrumento_respuestaWhereInput,
-    options?: { min?: number; max?: number },
+    options?: {
+      min?: number;
+      max?: number;
+      dateRange?: { start: Date; end: Date } | null;
+    },
   ): Promise<number | null> {
+    const mergedWhere: Prisma.paciente_instrumento_respuestaWhereInput = {
+      ...where,
+    };
+
+    if (options?.dateRange) {
+      mergedWhere.fecha = {
+        gte: options.dateRange.start,
+        lt: options.dateRange.end,
+      };
+    }
+
     const rows = await this.prisma.paciente_instrumento_respuesta.findMany({
-      where,
+      where: mergedWhere,
       select: { respuesta: true },
     });
 
@@ -1284,6 +1914,56 @@ export class PatientInstrumentsService {
     const normalized = value.toString().replace(',', '.');
     const numeric = Number(normalized);
     return Number.isFinite(numeric) ? numeric : null;
+  }
+
+  private formatDateOnly(value: Date | string): string {
+    if (value instanceof Date) {
+      return value.toISOString().slice(0, 10);
+    }
+
+    const raw = value?.toString().trim();
+    if (!raw) {
+      return '';
+    }
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+      return raw;
+    }
+
+    const parsed = new Date(raw);
+    return Number.isNaN(parsed.getTime())
+      ? ''
+      : parsed.toISOString().slice(0, 10);
+  }
+
+  private buildDateRange(
+    dateString: string | null,
+  ): { start: Date; end: Date } | null {
+    if (!dateString) {
+      return null;
+    }
+
+    const parts = dateString.split('-');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const [yearStr, monthStr, dayStr] = parts;
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    const day = Number(dayStr);
+
+    if (
+      !Number.isFinite(year) ||
+      !Number.isFinite(month) ||
+      !Number.isFinite(day)
+    ) {
+      return null;
+    }
+
+    const start = new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(year, month - 1, day + 1, 0, 0, 0, 0));
+    return { start, end };
   }
 
   private toNumeric(value: unknown): number {

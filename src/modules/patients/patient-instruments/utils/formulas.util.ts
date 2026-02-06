@@ -792,6 +792,7 @@ export const diagnosticoSalud = (
     colorTexto,
     icono,
     total,
+    responses: [],
   };
 };
 
