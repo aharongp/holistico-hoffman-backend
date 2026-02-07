@@ -1,12 +1,14 @@
 import 'reflect-metadata';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { PatientInstrumentsService } from '../src/modules/patients/patient-instruments/patient-instruments.service';
+import { MailService } from '../src/modules/mail/mail.service';
 
 async function main() {
   const prisma = new PrismaService();
   await prisma.$connect();
 
-  const service = new PatientInstrumentsService(prisma);
+  const mailService = new MailService();
+  const service = new PatientInstrumentsService(prisma, mailService);
 
   const patients = await prisma.paciente.findMany({
     select: { id: true },

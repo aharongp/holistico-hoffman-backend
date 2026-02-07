@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PatientInstrumentsService } from './patient-instruments.service';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { MailService } from 'src/modules/mail/mail.service';
 
 describe('PatientInstrumentsService', () => {
   let service: PatientInstrumentsService;
@@ -24,6 +25,12 @@ describe('PatientInstrumentsService', () => {
         {
           provide: PrismaService,
           useValue: prismaMock,
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendInstrumentAssignmentEmail: jest.fn().mockResolvedValue(true),
+          },
         },
       ],
     }).compile();

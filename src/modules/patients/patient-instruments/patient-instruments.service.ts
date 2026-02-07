@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
@@ -40,6 +41,7 @@ import {
   resultadoTest,
   revistaDiaria,
 } from './utils/formulas.util';
+import { MailService } from 'src/modules/mail/mail.service';
 
 export type AggregatedResultsDateOptions = {
   attitudinalDate?: string | null;
@@ -54,7 +56,12 @@ export type AggregatedResultsDateOptions = {
 
 @Injectable()
 export class PatientInstrumentsService {
-  constructor(private readonly prisma: PrismaService) {}
+  private readonly logger = new Logger(PatientInstrumentsService.name);
+
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mailService: MailService,
+  ) {}
 
   async create(
     createPatientInstrumentDto: CreatePatientInstrumentDto,
@@ -198,7 +205,102 @@ export class PatientInstrumentsService {
     });
 
     const [assignment] = await this.mapAssignments([record]);
+
+    if (assignment) {
+      void this.dispatchAssignmentEmail(assignment);
+    }
+
     return assignment;
+  }
+
+  private async dispatchAssignmentEmail(
+    assignment: PatientInstrumentAssignment,
+  ): Promise<void> {
+    if (!assignment.patientId) {
+      return;
+    }
+
+    try {
+      const patient = await this.prisma.paciente.findUnique({
+        where: { id: assignment.patientId },
+        select: {
+          id: true,
+          nombres: true,
+          apellidos: true,
+          contacto: true,
+          contacto_correo: true,
+          id_usuario: true,
+        },
+      });
+
+      if (!patient) {
+        this.logger.warn(
+          `Paciente ${assignment.patientId} no encontrado al preparar el correo de asignación ${assignment.id}.`,
+        );
+        return;
+      }
+
+      let targetEmail = this.normalizeEmail(patient.contacto_correo);
+      let fallbackName =
+        this.composeFullName(patient.nombres, patient.apellidos) ??
+        this.toStringOrNull(patient.contacto);
+      let userName: string | null = null;
+
+      if ((!targetEmail || !fallbackName) && patient.id_usuario) {
+        const user = await this.prisma.usuario.findUnique({
+          where: { id: patient.id_usuario },
+          select: {
+            email: true,
+            username: true,
+          },
+        });
+
+        if (user) {
+          if (!targetEmail) {
+            targetEmail = this.normalizeEmail(user.email);
+          }
+          if (!fallbackName) {
+            userName = this.toStringOrNull(user.username);
+          }
+        }
+      }
+
+      if (!targetEmail) {
+        this.logger.warn(
+          `No se envió correo para la asignación ${assignment.id} porque el paciente ${assignment.patientId} no tiene correo registrado.`,
+        );
+        return;
+      }
+
+      const patientName =
+        this.composeFullName(patient.nombres, patient.apellidos) ??
+        this.toStringOrNull(patient.contacto) ??
+        userName ??
+        'Paciente';
+
+      const instrumentName =
+        this.toStringOrNull(assignment.instrumentTypeName) ??
+        'instrumento asignado';
+
+      const sent = await this.mailService.sendInstrumentAssignmentEmail({
+        to: targetEmail,
+        patientName,
+        instrumentName,
+        assignedAt: assignment.assignedAt,
+        validUntil: assignment.validUntil,
+      });
+
+      if (!sent) {
+        this.logger.warn(
+          `El correo para la asignación ${assignment.id} dirigido a ${targetEmail} no pudo enviarse.`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Error al enviar notificación de instrumento asignado ${assignment.id}`,
+        error instanceof Error ? error.stack : String(error),
+      );
+    }
   }
 
   async findAll(): Promise<PatientInstrumentAssignment[]> {
@@ -1774,6 +1876,34 @@ export class PatientInstrumentsService {
 
     const str = value.toString().trim();
     return str.length ? str : null;
+  }
+
+  private normalizeEmail(value: unknown): string | null {
+    const email = this.toStringOrNull(value);
+    if (!email) {
+      return null;
+    }
+
+    const normalized = email.toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized)) {
+      return null;
+    }
+
+    return normalized;
+  }
+
+  private composeFullName(first: unknown, last: unknown): string | null {
+    const firstName = this.toStringOrNull(first);
+    const lastName = this.toStringOrNull(last);
+    const parts = [firstName, lastName].filter(
+      (value): value is string => Boolean(value),
+    );
+
+    if (parts.length) {
+      return parts.join(' ');
+    }
+
+    return firstName ?? lastName ?? null;
   }
 
   private calculateAge(birthDate: Date | null): number | null {
