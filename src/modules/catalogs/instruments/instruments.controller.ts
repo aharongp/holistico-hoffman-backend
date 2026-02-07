@@ -12,6 +12,8 @@ import { CreateInstrumentDto } from './dto/create-instrument.dto';
 import { UpdateInstrumentDto } from './dto/update-instrument.dto';
 import { CreateInstrumentTypeDto } from './dto/create-instrument-type.dto';
 import { UpdateInstrumentTypeDto } from './dto/update-instrument-type.dto';
+import { CreateInstrumentTopicDto } from './dto/create-instrument-topic.dto';
+import { UpdateInstrumentTopicDto } from './dto/update-instrument-topic.dto';
 
 @Controller('instruments')
 export class InstrumentsController {
@@ -25,6 +27,11 @@ export class InstrumentsController {
   @Get()
   findAll() {
     return this.instrumentsService.findAll();
+  }
+
+  @Get(':id/topics')
+  findTopics(@Param('id') id: string) {
+    return this.instrumentsService.findTopicsByInstrument(+id);
   }
 
   // GET /instruments/types -> all instrument types
@@ -71,6 +78,17 @@ export class InstrumentsController {
     return this.instrumentsService.findOne(+id);
   }
 
+  @Post(':id/topics')
+  createTopic(
+    @Param('id') id: string,
+    @Body() createInstrumentTopicDto: CreateInstrumentTopicDto,
+  ) {
+    return this.instrumentsService.createTopicForInstrument(
+      +id,
+      createInstrumentTopicDto,
+    );
+  }
+
   @Patch(':id')
   update(
     @Param('id') id: string,
@@ -79,8 +97,32 @@ export class InstrumentsController {
     return this.instrumentsService.update(+id, updateInstrumentDto);
   }
 
+  @Patch(':instrumentId/topics/:topicId')
+  updateTopic(
+    @Param('instrumentId') instrumentId: string,
+    @Param('topicId') topicId: string,
+    @Body() updateInstrumentTopicDto: UpdateInstrumentTopicDto,
+  ) {
+    return this.instrumentsService.updateTopicForInstrument(
+      +instrumentId,
+      +topicId,
+      updateInstrumentTopicDto,
+    );
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.instrumentsService.remove(+id);
+  }
+
+  @Delete(':instrumentId/topics/:topicId')
+  removeTopic(
+    @Param('instrumentId') instrumentId: string,
+    @Param('topicId') topicId: string,
+  ) {
+    return this.instrumentsService.removeTopicForInstrument(
+      +instrumentId,
+      +topicId,
+    );
   }
 }

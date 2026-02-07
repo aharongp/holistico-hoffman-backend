@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { CreateInstrumentDto } from './dto/create-instrument.dto';
 import { UpdateInstrumentDto } from './dto/update-instrument.dto';
 import { CreateInstrumentTypeDto } from './dto/create-instrument-type.dto';
 import { UpdateInstrumentTypeDto } from './dto/update-instrument-type.dto';
+import { CreateInstrumentTopicDto } from './dto/create-instrument-topic.dto';
+import { UpdateInstrumentTopicDto } from './dto/update-instrument-topic.dto';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 
@@ -29,6 +35,16 @@ export type PublicInstrumentType = {
   created_at?: Date | null;
   updated_at?: Date | null;
   id_criterio?: number | null;
+};
+
+export type PublicInstrumentTopic = {
+  id: number;
+  id_instrumento?: number | null;
+  nombre?: string | null;
+  user_created?: string | null;
+  created_at?: Date | null;
+  updated_at?: Date | null;
+  show?: boolean | null;
 };
 
 const INSTRUMENT_SELECT = {
@@ -60,6 +76,20 @@ type InstrumentTypeRecord = Prisma.instrumento_tipoGetPayload<{
     updated_at: true;
     id_criterio: true;
   };
+}>;
+
+const TOPIC_SELECT = {
+  id: true,
+  id_instrumento: true,
+  nombre: true,
+  user_created: true,
+  created_at: true,
+  updated_at: true,
+  show: true,
+} satisfies Prisma.topicoSelect;
+
+type InstrumentTopicRecord = Prisma.topicoGetPayload<{
+  select: typeof TOPIC_SELECT;
 }>;
 
 @Injectable()
@@ -303,6 +333,129 @@ export class InstrumentsService {
     };
   }
 
+  private async ensureInstrumentExists(instrumentId: number): Promise<void> {
+    if (!Number.isFinite(instrumentId) || instrumentId <= 0) {
+      throw new BadRequestException(
+        'El identificador del instrumento es inválido',
+      );
+    }
+
+    const instrument = await this.prisma.instrumento.findUnique({
+      where: { id: instrumentId },
+      select: { id: true },
+    });
+
+    if (!instrument) {
+      throw new NotFoundException(
+        `Instrument with id ${instrumentId} not found`,
+      );
+    }
+  }
+
+  private normalizeTopicString(value: unknown): string | null {
+    if (value === null || typeof value === 'undefined') {
+      return null;
+    }
+
+    const trimmed = String(value).trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  private normalizeTopicBoolean(value: unknown): boolean {
+    if (value === null || typeof value === 'undefined') {
+      return true;
+    }
+
+    if (typeof value === 'boolean') {
+      return value;
+    }
+
+    if (typeof value === 'number') {
+      return value !== 0;
+    }
+
+    if (typeof value === 'string') {
+      const normalized = value.trim().toLowerCase();
+      if (!normalized) return true;
+      if (['0', 'false', 'no', 'inactivo'].includes(normalized)) {
+        return false;
+      }
+      if (['1', 'true', 'si', 'sí', 'yes', 'activo'].includes(normalized)) {
+        return true;
+      }
+      const numeric = Number(normalized);
+      if (Number.isFinite(numeric)) {
+        return numeric !== 0;
+      }
+    }
+
+    return true;
+  }
+
+  private buildTopicCreateData(dto: CreateInstrumentTopicDto) {
+    const nombre = this.normalizeTopicString(dto.nombre ?? dto.name);
+    if (!nombre) {
+      throw new BadRequestException('El nombre del tópico es obligatorio');
+    }
+
+    return {
+      nombre,
+      user_created: this.normalizeTopicString(
+        dto.user_created ?? dto.userCreated,
+      ),
+      show: this.normalizeTopicBoolean(dto.show),
+    };
+  }
+
+  private buildTopicUpdateData(dto: UpdateInstrumentTopicDto) {
+    const data: Prisma.topicoUpdateInput = {};
+
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'nombre') ||
+      Object.prototype.hasOwnProperty.call(dto, 'name')
+    ) {
+      const nombre = this.normalizeTopicString(dto.nombre ?? dto.name);
+      if (!nombre) {
+        throw new BadRequestException('El nombre del tópico es obligatorio');
+      }
+      data.nombre = nombre;
+    }
+
+    if (
+      Object.prototype.hasOwnProperty.call(dto, 'user_created') ||
+      Object.prototype.hasOwnProperty.call(dto, 'userCreated')
+    ) {
+      data.user_created = this.normalizeTopicString(
+        dto.user_created ?? dto.userCreated,
+      );
+    }
+
+    if (Object.prototype.hasOwnProperty.call(dto, 'show')) {
+      data.show = this.normalizeTopicBoolean(dto.show);
+    }
+
+    return data;
+  }
+
+  private mapInstrumentTopic(
+    record: InstrumentTopicRecord,
+  ): PublicInstrumentTopic {
+    return {
+      id: record.id,
+      id_instrumento: record.id_instrumento ?? null,
+      nombre: record.nombre ?? null,
+      user_created: record.user_created ?? null,
+      created_at: record.created_at ?? null,
+      updated_at: record.updated_at ?? null,
+      show:
+        typeof record.show === 'boolean'
+          ? record.show
+          : record.show === null
+            ? null
+            : Boolean(record.show),
+    };
+  }
+
   private normalizeTypeStrings(value: unknown): string | null {
     if (value === null || typeof value === 'undefined') {
       return null;
@@ -414,6 +567,87 @@ export class InstrumentsService {
 
   async remove(id: number): Promise<{ deleted: boolean }> {
     await this.prisma.instrumento.delete({ where: { id } });
+    return { deleted: true };
+  }
+
+  async findTopicsByInstrument(
+    instrumentId: number,
+  ): Promise<PublicInstrumentTopic[]> {
+    await this.ensureInstrumentExists(instrumentId);
+
+    const topics = await this.prisma.topico.findMany({
+      where: { id_instrumento: instrumentId },
+      select: TOPIC_SELECT,
+      orderBy: { nombre: 'asc' },
+    });
+
+    return topics.map((topic) => this.mapInstrumentTopic(topic));
+  }
+
+  async createTopicForInstrument(
+    instrumentId: number,
+    dto: CreateInstrumentTopicDto,
+  ): Promise<PublicInstrumentTopic> {
+    await this.ensureInstrumentExists(instrumentId);
+    const data = this.buildTopicCreateData(dto);
+
+    const created = await this.prisma.topico.create({
+      data: {
+        ...data,
+        id_instrumento: instrumentId,
+      },
+      select: TOPIC_SELECT,
+    });
+
+    return this.mapInstrumentTopic(created);
+  }
+
+  async updateTopicForInstrument(
+    instrumentId: number,
+    topicId: number,
+    dto: UpdateInstrumentTopicDto,
+  ): Promise<PublicInstrumentTopic> {
+    const existing = await this.prisma.topico.findUnique({
+      where: { id: topicId },
+      select: TOPIC_SELECT,
+    });
+
+    if (!existing || existing.id_instrumento !== instrumentId) {
+      throw new NotFoundException(
+        `Topic with id ${topicId} not found for instrument ${instrumentId}`,
+      );
+    }
+
+    const data = this.buildTopicUpdateData(dto);
+    if (Object.keys(data).length === 0) {
+      return this.mapInstrumentTopic(existing);
+    }
+
+    const updated = await this.prisma.topico.update({
+      where: { id: topicId },
+      data,
+      select: TOPIC_SELECT,
+    });
+
+    return this.mapInstrumentTopic(updated);
+  }
+
+  async removeTopicForInstrument(
+    instrumentId: number,
+    topicId: number,
+  ): Promise<{ deleted: boolean }> {
+    const existing = await this.prisma.topico.findUnique({
+      where: { id: topicId },
+      select: { id: true, id_instrumento: true },
+    });
+
+    if (!existing || existing.id_instrumento !== instrumentId) {
+      throw new NotFoundException(
+        `Topic with id ${topicId} not found for instrument ${instrumentId}`,
+      );
+    }
+
+    await this.prisma.topico.delete({ where: { id: topicId } });
     return { deleted: true };
   }
 

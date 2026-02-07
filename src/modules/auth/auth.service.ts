@@ -3,6 +3,7 @@ import {
   UnauthorizedException,
   Logger,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -10,6 +11,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { RegisterDto } from './dto/register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { createHash } from 'crypto';
 import { PatientService } from '../patients/patient/patient.service';
 
@@ -202,11 +205,37 @@ export class AuthService {
       return null;
     }
 
-    return user;
+    const patient = await this.prisma.paciente.findFirst({
+      where: { id_usuario: user.id },
+      select: {
+        nombres: true,
+        apellidos: true,
+        contacto_correo: true,
+        contacto_telefono: true,
+      },
+    });
+
+    return {
+      ...user,
+      nombres: patient?.nombres ?? null,
+      apellidos: patient?.apellidos ?? null,
+      contacto_correo: patient?.contacto_correo ?? null,
+      contacto_telefono: patient?.contacto_telefono ?? null,
+    };
   }
 
   buildProfileResponse(user: any) {
     if (!user) return null;
+
+    const deriveNameParts = (value: string | null | undefined) => {
+      const trimmed = (value ?? '').toString().trim();
+      if (!trimmed) {
+        return { first: '', last: '' };
+      }
+
+      const [first, ...rest] = trimmed.split(/\s+/);
+      return { first: first ?? '', last: rest.join(' ').trim() };
+    };
 
     const normalizeRole = (role: string | null | undefined): string => {
       const value = (role ?? '').toString().trim().toLowerCase();
@@ -223,19 +252,149 @@ export class AuthService {
       return ['doctor', 'medico'].includes(value) ? 'doctor' : 'doctor';
     };
 
+    const fallbackNames = deriveNameParts(user.username);
+    const firstName = (user.nombres ?? '').toString().trim() || fallbackNames.first;
+    const lastName = (user.apellidos ?? '').toString().trim() || fallbackNames.last;
+
     return {
       id: user.id,
       username: user.username ?? '',
       email: user.email ?? '',
-      firstName: user.nombres ?? '',
-      lastName: user.apellidos ?? '',
+      firstName,
+      lastName,
       role: normalizeRole(user.rol),
-      avatar: user.avatar ?? null,
+      avatar: (user.avatar ?? '').toString().trim() || null,
       createdAt: user.created_at ?? null,
       lastLogin: user.updated_at ?? null,
       isActive:
         typeof user.active === 'undefined' ? true : Number(user.active) === 1,
     };
+  }
+
+  async getProfileByUserId(userId: number) {
+    const record = await this.findUserWithPatientById(userId);
+    if (!record) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    return this.buildProfileResponse(record);
+  }
+
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    const firstName = this.sanitizeName(dto.firstName);
+    const lastName = this.sanitizeName(dto.lastName);
+    const email = this.sanitizeEmail(dto.email);
+    const avatarProvided = Object.prototype.hasOwnProperty.call(dto, 'avatar');
+    const avatar = avatarProvided ? this.normalizeAvatar(dto.avatar) : null;
+
+    if (!firstName || !lastName || !email) {
+      throw new BadRequestException('Debes proporcionar nombre, apellido y correo válidos');
+    }
+
+    if (!this.isValidEmail(email)) {
+      throw new BadRequestException('Debes proporcionar un correo válido');
+    }
+
+    const existingUser = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, username: true },
+    });
+
+    if (!existingUser) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const duplicateEmail = await this.prisma.usuario.findFirst({
+      where: {
+        email,
+        NOT: {
+          id: userId,
+        },
+      },
+      select: { id: true },
+    });
+
+    if (duplicateEmail) {
+      throw new BadRequestException('El correo ya está en uso por otro usuario');
+    }
+
+    const username = this.composeDisplayName(firstName, lastName, existingUser.username ?? email);
+    const timestamp = new Date();
+
+    await this.prisma.$transaction(async (prisma) => {
+      await prisma.usuario.update({
+        where: { id: userId },
+        data: {
+          email,
+          username,
+          updated_at: timestamp,
+          ...(avatarProvided ? { avatar } : {}),
+        },
+      });
+
+      const patient = await prisma.paciente.findFirst({
+        where: { id_usuario: userId },
+        select: { id: true },
+      });
+
+      if (patient) {
+        await prisma.paciente.update({
+          where: { id: patient.id },
+          data: {
+            nombres: firstName,
+            apellidos: lastName,
+            contacto: username,
+            contacto_correo: email,
+          },
+        });
+      }
+    });
+
+    return this.getProfileByUserId(userId);
+  }
+
+  async changePassword(userId: number, dto: ChangePasswordDto) {
+    const currentPassword = (dto.currentPassword ?? '').trim();
+    const newPassword = (dto.newPassword ?? '').trim();
+
+    if (!currentPassword || !newPassword) {
+      throw new BadRequestException('Debes proporcionar la contraseña actual y la nueva contraseña');
+    }
+
+    if (newPassword.length < 6) {
+      throw new BadRequestException('La nueva contraseña debe tener al menos 6 caracteres');
+    }
+
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+      select: { password: true },
+    });
+
+    if (!user || !user.password) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const matches = await this.comparePassword(currentPassword, user.password);
+    if (!matches) {
+      throw new UnauthorizedException('La contraseña actual no es correcta');
+    }
+
+    const newMatchesOld = await this.comparePassword(newPassword, user.password);
+    if (newMatchesOld) {
+      throw new BadRequestException('La nueva contraseña debe ser diferente a la actual');
+    }
+
+    const hashedPassword = this.hashPassword(newPassword);
+
+    await this.prisma.usuario.update({
+      where: { id: userId },
+      data: {
+        password: hashedPassword,
+        updated_at: new Date(),
+      },
+    });
+
+    return { success: true };
   }
 
   private async comparePassword(
@@ -307,5 +466,63 @@ export class AuthService {
       return 'student';
     }
     return 'patient';
+  }
+
+  private async findUserWithPatientById(userId: number) {
+    const user = await this.prisma.usuario.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    const patient = await this.prisma.paciente.findFirst({
+      where: { id_usuario: userId },
+      select: {
+        nombres: true,
+        apellidos: true,
+        contacto_correo: true,
+        contacto_telefono: true,
+      },
+    });
+
+    return {
+      ...user,
+      nombres: patient?.nombres ?? null,
+      apellidos: patient?.apellidos ?? null,
+      contacto_correo: patient?.contacto_correo ?? null,
+      contacto_telefono: patient?.contacto_telefono ?? null,
+    };
+  }
+
+  private sanitizeName(value: string | null | undefined) {
+    return (value ?? '').toString().trim();
+  }
+
+  private sanitizeEmail(value: string | null | undefined) {
+    return (value ?? '').toString().trim().toLowerCase();
+  }
+
+  private isValidEmail(value: string) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }
+
+  private normalizeAvatar(avatar: string | null | undefined) {
+    const trimmed = (avatar ?? '').toString().trim();
+    return trimmed.length ? trimmed : null;
+  }
+
+  private composeDisplayName(firstName: string, lastName: string, fallback: string) {
+    const parts = [firstName, lastName]
+      .map((value) => (value ?? '').toString().trim())
+      .filter(Boolean);
+
+    if (!parts.length) {
+      const normalizedFallback = (fallback ?? '').toString().trim();
+      return normalizedFallback || `${Date.now()}`;
+    }
+
+    return parts.join(' ');
   }
 }

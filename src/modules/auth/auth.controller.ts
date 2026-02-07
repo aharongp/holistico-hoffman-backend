@@ -1,9 +1,19 @@
-import { Controller, Post, Body, UseGuards, Get, Req } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Get,
+  Req,
+  Patch,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 type RequestWithUser = Request & { user: any };
 
@@ -24,15 +34,34 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   profile(@Req() req: RequestWithUser) {
-    return this.authService.buildProfileResponse(req.user);
+    return this.authService.getProfileByUserId(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('validate')
-  validateToken(@Req() req: RequestWithUser) {
+  async validateToken(@Req() req: RequestWithUser) {
+    const user = await this.authService.getProfileByUserId(req.user.id);
     return {
       valid: true,
-      user: this.authService.buildProfileResponse(req.user),
+      user,
     };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  updateProfile(
+    @Req() req: RequestWithUser,
+    @Body() updateProfileDto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(req.user.id, updateProfileDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('password')
+  changePassword(
+    @Req() req: RequestWithUser,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(req.user.id, changePasswordDto);
   }
 }

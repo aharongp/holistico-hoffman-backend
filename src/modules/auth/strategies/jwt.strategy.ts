@@ -40,6 +40,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User is inactive');
     }
 
-    return user;
+    const patient = await this.prisma.paciente.findFirst({
+      where: { id_usuario: user.id },
+      select: {
+        nombres: true,
+        apellidos: true,
+        contacto_correo: true,
+        contacto_telefono: true,
+      },
+    });
+
+    return {
+      ...user,
+      nombres: patient?.nombres ?? null,
+      apellidos: patient?.apellidos ?? null,
+      contacto_correo: patient?.contacto_correo ?? null,
+      contacto_telefono: patient?.contacto_telefono ?? null,
+    };
   }
 }
