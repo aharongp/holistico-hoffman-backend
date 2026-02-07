@@ -1,6 +1,8 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { buildDefaultPasswordHash } from './user-password.util';
 
 export type PublicUser = {
   id: number;
@@ -150,7 +152,7 @@ export class UsersService {
       data: {
         email,
         username,
-        password: null,
+        password: buildDefaultPasswordHash(),
         rol: role,
         active: 1,
       },
@@ -202,7 +204,31 @@ export class UsersService {
   }
 
   async remove(id: number): Promise<{ deleted: boolean }> {
-    await this.prisma.usuario.delete({ where: { id } });
-    return { deleted: true };
+    try {
+      await this.prisma.$transaction(async (transaction) => {
+        await transaction.$executeRaw`DELETE FROM usuario_menu WHERE id_usuario = ${id}`;
+
+        await transaction.paciente.updateMany({
+          where: { id_usuario: id },
+          data: { id_usuario: null },
+        });
+
+        await transaction.instrumento_usuario.updateMany({
+          where: { id_usuario: id },
+          data: { id_usuario: null },
+        });
+
+        await transaction.usuario.delete({ where: { id } });
+      });
+      return { deleted: true };
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException('Usuario no encontrado');
+      }
+      throw error;
+    }
   }
 }

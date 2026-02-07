@@ -1,10 +1,17 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  Logger,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { RegisterDto } from './dto/register.dto';
 import { createHash } from 'crypto';
+import { PatientService } from '../patients/patient/patient.service';
 
 @Injectable()
 export class AuthService {
@@ -14,6 +21,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly patientService: PatientService,
   ) {
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN ?? '3600s';
   }
@@ -48,6 +56,117 @@ export class AuthService {
       accessToken,
       expiresIn: this.jwtExpiresIn,
       user: this.buildProfileResponse(userRecord),
+    };
+  }
+
+  async register(registerDto: RegisterDto) {
+    const email = (registerDto.email ?? '').trim().toLowerCase();
+    const password = (registerDto.password ?? '').trim();
+    const firstName = (registerDto.firstName ?? '').trim();
+    const lastName = (registerDto.lastName ?? '').trim();
+    const requestedRole = (registerDto.role ?? 'patient').toString().trim();
+    const nationalId = (registerDto.nationalId ?? '').trim();
+    const birthDate = (registerDto.birthDate ?? '').trim();
+    const gender = (registerDto.gender ?? '').trim();
+    const contactPhone = (registerDto.contactPhone ?? '').trim();
+
+    if (!email || !password || !firstName || !lastName) {
+      throw new BadRequestException('Missing required registration data');
+    }
+
+    const duplicate = await this.prisma.usuario.findFirst({
+      where: {
+        OR: [{ email }, { email: email.toLowerCase() }],
+      },
+      select: { id: true },
+    });
+
+    if (duplicate) {
+      throw new BadRequestException('El correo ya está registrado');
+    }
+
+    const hashedPassword = this.hashPassword(password);
+    const normalizedRole = this.normalizeRole(requestedRole);
+    const username = `${firstName} ${lastName}`.trim() || email;
+    const timestamp = new Date();
+
+    let createdUser:
+      | {
+          id: number;
+          email: string | null;
+          rol: string | null;
+          username: string | null;
+          active: number | null;
+          created_at: Date | null;
+          updated_at: Date | null;
+        }
+      | null = null;
+
+    try {
+      createdUser = await this.prisma.usuario.create({
+        data: {
+          email,
+          username,
+          password: hashedPassword,
+          rol: normalizedRole,
+          active: 1,
+          created_at: timestamp,
+          updated_at: timestamp,
+        },
+        select: {
+          id: true,
+          email: true,
+          rol: true,
+          username: true,
+          active: true,
+          created_at: true,
+          updated_at: true,
+        },
+      });
+
+      await this.patientService.create({
+        id_usuario: createdUser.id,
+        nombres: firstName,
+        apellidos: lastName,
+        genero: gender || undefined,
+        fecha_nacimiento: birthDate || undefined,
+        telefono: contactPhone || undefined,
+        contacto: username,
+        contacto_correo: email,
+        contacto_telefono: contactPhone || undefined,
+        activo: 1,
+        user_role: normalizedRole,
+        cedula: nationalId || undefined,
+      } as any);
+    } catch (error) {
+      if (createdUser) {
+        await this.prisma.usuario
+          .delete({ where: { id: createdUser.id } })
+          .catch(() => undefined);
+      }
+      throw error;
+    }
+
+    const payload: JwtPayload = {
+      sub: createdUser.id,
+      role: normalizedRole,
+      email: createdUser.email,
+    };
+
+    const accessToken = await this.jwtService.signAsync(payload, {
+      expiresIn: this.jwtExpiresIn,
+    });
+
+    const profile = this.buildProfileResponse({
+      ...createdUser,
+      nombres: firstName,
+      apellidos: lastName,
+    });
+
+    return {
+      accessToken,
+      expiresIn: this.jwtExpiresIn,
+      user: profile,
     };
   }
 
@@ -155,5 +274,38 @@ export class AuthService {
     }
 
     return plain === trimmedHash;
+  }
+
+  private hashPassword(password: string): string {
+    const trimmed = password.trim();
+    if (!trimmed) {
+      throw new BadRequestException('La contraseña es requerida');
+    }
+
+    const md5Hash = createHash('md5').update(trimmed).digest('hex');
+    return `md5:${md5Hash}`;
+  }
+
+  private normalizeRole(role: string): string {
+    const value = role.toLowerCase();
+    if (['administrator', 'admin', 'administrador'].includes(value)) {
+      return 'administrator';
+    }
+    if (['doctor', 'medico'].includes(value)) {
+      return 'doctor';
+    }
+    if (['therapist', 'terapeuta'].includes(value)) {
+      return 'therapist';
+    }
+    if (['coach'].includes(value)) {
+      return 'coach';
+    }
+    if (['trainer', 'entrenador'].includes(value)) {
+      return 'trainer';
+    }
+    if (['student', 'estudiante'].includes(value)) {
+      return 'student';
+    }
+    return 'patient';
   }
 }

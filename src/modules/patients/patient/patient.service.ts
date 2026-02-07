@@ -9,6 +9,7 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { HistoryService } from '../history/history.service';
 import { PatientMedicalHistory } from '../history/entities/history.entity';
 import { UpdateHistoryDto } from '../history/dto/update-history.dto';
+import { buildDefaultPasswordHash } from '../../users/user-password.util';
 
 export type PublicPatient = {
   id: number;
@@ -335,7 +336,7 @@ export class PatientService {
             data: {
               email: normalizedEmail,
               username,
-              password: null,
+              password: buildDefaultPasswordHash(),
               rol: userRole,
               active: 1,
             },
