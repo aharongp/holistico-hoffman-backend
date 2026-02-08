@@ -6,12 +6,14 @@ import { AuthController } from './auth.controller';
 import { PrismaModule } from 'src/prisma/prisma.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PatientModule } from '../patients/patient/patient.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   controllers: [AuthController],
   imports: [
     PrismaModule,
     PatientModule,
+    MailModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? 'development-secret',

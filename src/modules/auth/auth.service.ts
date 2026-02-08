@@ -13,8 +13,11 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 import { RegisterDto } from './dto/register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
-import { createHash } from 'crypto';
+import { createHash, randomInt } from 'crypto';
 import { PatientService } from '../patients/patient/patient.service';
+import { MailService } from '../mail/mail.service';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { VerifyPasswordResetDto } from './dto/verify-password-reset.dto';
 
 @Injectable()
 export class AuthService {
@@ -25,6 +28,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly patientService: PatientService,
+    private readonly mailService: MailService,
   ) {
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN ?? '3600s';
   }
@@ -397,6 +401,143 @@ export class AuthService {
     return { success: true };
   }
 
+  async requestPasswordReset(dto: RequestPasswordResetDto) {
+    const email = this.sanitizeEmail(dto.email);
+    if (!email) {
+      throw new BadRequestException('Debes proporcionar un correo electrónico');
+    }
+
+    if (!this.isValidEmail(email)) {
+      throw new BadRequestException('Debes proporcionar un correo válido');
+    }
+
+    const user = await this.prisma.usuario.findFirst({
+      where: {
+        OR: [{ email }, { email: email.toLowerCase() }],
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+      },
+    });
+
+    if (!user) {
+      return { success: true };
+    }
+
+    const verificationCode = this.generateResetCode();
+    const codeHash = this.hashResetCode(verificationCode);
+
+    const verificationToken = await this.jwtService.signAsync(
+      {
+        email: user.email ?? email,
+        codeHash,
+        type: 'password-reset',
+      },
+      {
+        expiresIn: '180s',
+      },
+    );
+
+    const displayName = (user.username ?? '').toString().trim() || user.email || email;
+    const safeName = this.escapeHtml(displayName);
+    const textLines = [
+      `Hola ${displayName},`,
+      '',
+      'Hemos recibido una solicitud para restablecer tu contraseña.',
+      `Tu código de verificación es: ${verificationCode}`,
+      'Este código caduca en 3 minutos.',
+      '',
+      'Si no solicitaste este cambio, puedes ignorar este mensaje.',
+      '',
+      'Equipo Holístico Hoffmann',
+    ];
+
+    const htmlMessage = [
+      `<p>Hola ${safeName},</p>`,
+      '<p>Hemos recibido una solicitud para restablecer tu contraseña.</p>',
+      `<p style="font-size: 1.5rem; font-weight: 700; letter-spacing: 0.3rem;">${verificationCode}</p>`,
+      '<p>Este código caduca en 3 minutos.</p>',
+      '<p>Si no solicitaste este cambio, puedes ignorar este mensaje.</p>',
+      '<p>Equipo Holístico Hoffmann</p>',
+    ].join('');
+
+    await this.mailService.sendMail({
+      to: user.email ?? email,
+      subject: 'Código de verificación para restablecer tu contraseña',
+      text: textLines.join('\n'),
+      html: htmlMessage,
+    });
+
+    return { success: true, token: verificationToken };
+  }
+
+  async verifyPasswordReset(dto: VerifyPasswordResetDto) {
+    const email = this.sanitizeEmail(dto.email);
+    const code = (dto.code ?? '').toString().trim();
+    const newPassword = (dto.newPassword ?? '').toString().trim();
+    const token = (dto.token ?? '').toString().trim();
+
+    if (!email || !code || !newPassword || !token) {
+      throw new BadRequestException('Debes proporcionar correo, código de verificación, token y la nueva contraseña');
+    }
+
+    if (!this.isValidEmail(email)) {
+      throw new BadRequestException('Debes proporcionar un correo válido');
+    }
+
+    if (newPassword.length < 6) {
+      throw new BadRequestException('La nueva contraseña debe tener al menos 6 caracteres');
+    }
+
+    let payload: { email?: string; codeHash?: string; type?: string } | null = null;
+    try {
+      payload = await this.jwtService.verifyAsync(token);
+    } catch (error) {
+      throw new BadRequestException('El código de verificación no es válido o ha expirado');
+    }
+
+    if (!payload || payload.type !== 'password-reset') {
+      throw new BadRequestException('El código de verificación no es válido o ha expirado');
+    }
+
+    const payloadEmail = this.sanitizeEmail(payload.email);
+    if (payloadEmail !== email) {
+      throw new BadRequestException('El código de verificación no es válido o ha expirado');
+    }
+
+    const hashedCode = this.hashResetCode(code);
+    if (!payload.codeHash || payload.codeHash !== hashedCode) {
+      throw new BadRequestException('El código de verificación no es válido o ha expirado');
+    }
+
+    const user = await this.prisma.usuario.findFirst({
+      where: {
+        OR: [{ email }, { email: email.toLowerCase() }],
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('El código de verificación no es válido o ha expirado');
+    }
+
+    const hashedPassword = this.hashPassword(newPassword);
+
+    await this.prisma.usuario.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        updated_at: new Date(),
+      },
+    });
+
+    return { success: true };
+  }
+
   private async comparePassword(
     plain: string,
     hashed: string,
@@ -524,5 +665,30 @@ export class AuthService {
     }
 
     return parts.join(' ');
+  }
+
+  private generateResetCode(): string {
+    const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    const length = 6;
+    let code = '';
+    for (let index = 0; index < length; index += 1) {
+      const randomIndex = randomInt(alphabet.length);
+      code += alphabet[randomIndex];
+    }
+    return code;
+  }
+
+  private hashResetCode(code: string): string {
+    const normalized = code.replace(/\s+/g, '');
+    return createHash('sha256').update(normalized).digest('hex');
+  }
+
+  private escapeHtml(value: string): string {
+    return value
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
   }
 }
