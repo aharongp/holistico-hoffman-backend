@@ -19,11 +19,22 @@ export interface VitalPhoto {
   path: string;
 }
 
+export interface VitalMeasurements {
+  weight: string | null;
+  neck: string | null;
+  bust: string | null;
+  waist: string | null;
+  hip: string | null;
+  rightArm: string | null;
+  rightThigh: string | null;
+}
+
 export interface NumericVitalRecord extends BaseVitalRecord {
   value: number | null;
   rawValue: string | null;
   unit: string | null;
   photos?: VitalPhoto[];
+  measurements?: VitalMeasurements;
 }
 
 export interface BloodPressureRecord extends BaseVitalRecord {

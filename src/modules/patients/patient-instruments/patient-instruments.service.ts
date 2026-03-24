@@ -4,6 +4,7 @@ import {
   NotFoundException,
   Logger,
 } from '@nestjs/common';
+import { CreateBulkPatientInstrumentDto } from './dto/create-bulk-patient-instrument.dto';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
 import { PrismaService } from 'src/prisma/prisma.service';
@@ -52,6 +53,21 @@ export type AggregatedResultsDateOptions = {
   wellnessLifeDate?: string | null;
   wellnessHealthDate?: string | null;
   wellnessRegiflexDate?: string | null;
+};
+
+export type BulkAssignmentItemResult = {
+  patientId: number | null;
+  instrumentTypeId: number | null;
+  status: 'created' | 'failed';
+  assignmentId?: number;
+  error?: string;
+};
+
+export type BulkAssignmentResult = {
+  requestedPairs: number;
+  createdCount: number;
+  failedCount: number;
+  results: BulkAssignmentItemResult[];
 };
 
 @Injectable()
@@ -211,6 +227,152 @@ export class PatientInstrumentsService {
     }
 
     return assignment;
+  }
+
+  async createBulk(
+    createBulkPatientInstrumentDto: CreateBulkPatientInstrumentDto,
+  ): Promise<BulkAssignmentResult> {
+    const patientIds = Array.isArray(createBulkPatientInstrumentDto.patientIds)
+      ? createBulkPatientInstrumentDto.patientIds
+      : [];
+    const instrumentTypeIds = Array.isArray(
+      createBulkPatientInstrumentDto.instrumentTypeIds,
+    )
+      ? createBulkPatientInstrumentDto.instrumentTypeIds
+      : [];
+
+    if (!patientIds.length) {
+      throw new BadRequestException(
+        'Debes seleccionar al menos un paciente para la asignación por lote.',
+      );
+    }
+
+    if (!instrumentTypeIds.length) {
+      throw new BadRequestException(
+        'Debes seleccionar al menos un tipo de instrumento para la asignación por lote.',
+      );
+    }
+
+    const results: BulkAssignmentItemResult[] = [];
+
+    for (const rawPatientId of patientIds) {
+      const patientId = this.normalizeNumber(rawPatientId);
+
+      for (const rawInstrumentTypeId of instrumentTypeIds) {
+        const instrumentTypeId = this.normalizeNumber(rawInstrumentTypeId);
+
+        if (patientId === null || instrumentTypeId === null) {
+          results.push({
+            patientId,
+            instrumentTypeId,
+            status: 'failed',
+            error: 'Identificador de paciente o tipo de instrumento inválido.',
+          });
+          continue;
+        }
+
+        const payload: CreatePatientInstrumentDto = {
+          id_paciente: patientId,
+          id_instrumento_tipo: instrumentTypeId,
+        };
+
+        // Only forward optional fields that were actually sent in the bulk payload.
+        if (
+          this.hasAnyKey(createBulkPatientInstrumentDto, [
+            'fecha_instrumento',
+            'assignedAt',
+          ])
+        ) {
+          payload.fecha_instrumento =
+            (createBulkPatientInstrumentDto as any).fecha_instrumento ??
+            (createBulkPatientInstrumentDto as any).assignedAt;
+        }
+
+        if (
+          this.hasAnyKey(createBulkPatientInstrumentDto, [
+            'valido_hasta',
+            'validUntil',
+          ])
+        ) {
+          payload.valido_hasta =
+            (createBulkPatientInstrumentDto as any).valido_hasta ??
+            (createBulkPatientInstrumentDto as any).validUntil;
+        }
+
+        if (
+          this.hasAnyKey(createBulkPatientInstrumentDto, [
+            'disponible',
+            'available',
+          ])
+        ) {
+          payload.disponible =
+            (createBulkPatientInstrumentDto as any).disponible ??
+            (createBulkPatientInstrumentDto as any).available;
+        }
+
+        if (this.hasAnyKey(createBulkPatientInstrumentDto, ['origen', 'origin'])) {
+          payload.origen =
+            (createBulkPatientInstrumentDto as any).origen ??
+            (createBulkPatientInstrumentDto as any).origin;
+        }
+
+        if (
+          this.hasAnyKey(createBulkPatientInstrumentDto, ['array_tema', 'topics'])
+        ) {
+          payload.array_tema =
+            (createBulkPatientInstrumentDto as any).array_tema ??
+            (createBulkPatientInstrumentDto as any).topics;
+        }
+
+        if (
+          this.hasAnyKey(createBulkPatientInstrumentDto, [
+            'user_created',
+            'userCreated',
+          ])
+        ) {
+          payload.user_created =
+            (createBulkPatientInstrumentDto as any).user_created ??
+            (createBulkPatientInstrumentDto as any).userCreated;
+        }
+
+        if (this.hasAnyKey(createBulkPatientInstrumentDto, ['id_cinta', 'ribbonId'])) {
+          payload.id_cinta =
+            (createBulkPatientInstrumentDto as any).id_cinta ??
+            (createBulkPatientInstrumentDto as any).ribbonId;
+        }
+
+        try {
+          const assignment = await this.create(payload);
+          results.push({
+            patientId,
+            instrumentTypeId,
+            status: 'created',
+            assignmentId: assignment.id,
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : 'Error inesperado al crear la asignación.';
+          results.push({
+            patientId,
+            instrumentTypeId,
+            status: 'failed',
+            error: message,
+          });
+        }
+      }
+    }
+
+    const createdCount = results.filter((item) => item.status === 'created').length;
+    const failedCount = results.length - createdCount;
+
+    return {
+      requestedPairs: patientIds.length * instrumentTypeIds.length,
+      createdCount,
+      failedCount,
+      results,
+    };
   }
 
   private async dispatchAssignmentEmail(

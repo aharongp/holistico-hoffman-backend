@@ -494,6 +494,13 @@ export class VitalsService {
       id: number;
       fecha: Date | null;
       imc: string | null;
+      peso?: string | null;
+      cuello?: string | null;
+      busto_pecho?: string | null;
+      cintura?: string | null;
+      cadera?: string | null;
+      brazo?: string | null;
+      muslo?: string | null;
     }>,
   ): NumericVitalRecord[] {
     return consultations
@@ -505,6 +512,15 @@ export class VitalsService {
         rawValue: entry.imc,
         unit: 'kg/m²',
         source: 'consultation',
+        measurements: {
+          weight: this.sanitizeBodyMassString(entry.peso),
+          neck: this.sanitizeBodyMassString(entry.cuello),
+          bust: this.sanitizeBodyMassString(entry.busto_pecho),
+          waist: this.sanitizeBodyMassString(entry.cintura),
+          hip: this.sanitizeBodyMassString(entry.cadera),
+          rightArm: this.sanitizeBodyMassString(entry.brazo),
+          rightThigh: this.sanitizeBodyMassString(entry.muslo),
+        },
       }));
   }
 
@@ -615,6 +631,12 @@ export class VitalsService {
       id: number;
       fecha: Date | null;
       peso: string | null;
+      cuello?: string | null;
+      busto?: string | null;
+      cintura?: string | null;
+      cadera?: string | null;
+      brazo_derecho?: string | null;
+      muslo_derecho?: string | null;
       created_at?: Date | null;
       updated_at?: Date | null;
       foto_rostro?: string | null;
@@ -660,6 +682,15 @@ export class VitalsService {
           unit: 'kg/m²',
           source: 'body_mass',
           photos: this.mapBodyMassPhotos(entry),
+          measurements: {
+            weight: this.sanitizeBodyMassString(entry.peso),
+            neck: this.sanitizeBodyMassString(entry.cuello),
+            bust: this.sanitizeBodyMassString(entry.busto),
+            waist: this.sanitizeBodyMassString(entry.cintura),
+            hip: this.sanitizeBodyMassString(entry.cadera),
+            rightArm: this.sanitizeBodyMassString(entry.brazo_derecho),
+            rightThigh: this.sanitizeBodyMassString(entry.muslo_derecho),
+          },
         } satisfies NumericVitalRecord;
       })
       .filter((entry): entry is NumericVitalRecord => entry !== null);
@@ -752,6 +783,12 @@ export class VitalsService {
           pulso: true,
           tension: true,
           imc: true,
+          cuello: true,
+          busto_pecho: true,
+          cintura: true,
+          cadera: true,
+          brazo: true,
+          muslo: true,
         },
       }),
       this.prisma.paciente_pulso.findMany({
@@ -835,6 +872,12 @@ export class VitalsService {
           foto_cuerpo_perfil: true,
           foto_espalda_entero: true,
           foto_extra: true,
+            cuello: true,
+            busto: true,
+            cintura: true,
+            cadera: true,
+            brazo_derecho: true,
+            muslo_derecho: true,
         },
       }),
       this.prisma.paciente_peso.findMany({

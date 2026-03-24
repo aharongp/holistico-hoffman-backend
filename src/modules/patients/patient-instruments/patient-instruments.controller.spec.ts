@@ -14,6 +14,7 @@ describe('PatientInstrumentsController', () => {
       findResponsesByUser: jest.fn(),
       findOne: jest.fn(),
       create: jest.fn(),
+      createBulk: jest.fn(),
       update: jest.fn(),
       remove: jest.fn(),
     } as unknown as PatientInstrumentsService;

@@ -13,6 +13,7 @@ import {
   AggregatedResultsDateOptions,
   PatientInstrumentsService,
 } from './patient-instruments.service';
+import { CreateBulkPatientInstrumentDto } from './dto/create-bulk-patient-instrument.dto';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
 import { SubmitPatientInstrumentResponseDto } from './dto/submit-patient-instrument-response.dto';
@@ -26,6 +27,11 @@ export class PatientInstrumentsController {
   @Post()
   create(@Body() createPatientInstrumentDto: CreatePatientInstrumentDto) {
     return this.patientInstrumentsService.create(createPatientInstrumentDto);
+  }
+
+  @Post('bulk')
+  createBulk(@Body() createBulkPatientInstrumentDto: CreateBulkPatientInstrumentDto) {
+    return this.patientInstrumentsService.createBulk(createBulkPatientInstrumentDto);
   }
 
   @Get()
