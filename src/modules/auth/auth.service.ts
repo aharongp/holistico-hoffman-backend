@@ -18,6 +18,7 @@ import { PatientService } from '../patients/patient/patient.service';
 import { MailService } from '../mail/mail.service';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { VerifyPasswordResetDto } from './dto/verify-password-reset.dto';
+import { PermissionsService } from '../permissions/permissions.service';
 
 @Injectable()
 export class AuthService {
@@ -29,6 +30,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly patientService: PatientService,
     private readonly mailService: MailService,
+    // private readonly permissionsService: PermissionsService,
   ) {
     this.jwtExpiresIn = process.env.JWT_EXPIRES_IN ?? '3600s';
   }
@@ -63,6 +65,7 @@ export class AuthService {
       accessToken,
       expiresIn: this.jwtExpiresIn,
       user: this.buildProfileResponse(userRecord),
+      // user: await this.buildProfileResponseWithPermissions(userRecord),
     };
   }
 
@@ -163,8 +166,8 @@ export class AuthService {
     const accessToken = await this.jwtService.signAsync(payload, {
       expiresIn: this.jwtExpiresIn,
     });
-
     const profile = this.buildProfileResponse({
+    // const profile = await this.buildProfileResponseWithPermissions({
       ...createdUser,
       nombres: firstName,
       apellidos: lastName,
@@ -281,7 +284,26 @@ export class AuthService {
       throw new NotFoundException('Usuario no encontrado');
     }
 
-    return this.buildProfileResponse(record);
+        return this.buildProfileResponse(record);
+  //   return this.buildProfileResponseWithPermissions(record);
+  // }
+
+  // private async buildProfileResponseWithPermissions(user: any) {
+  //   const profile = this.buildProfileResponse(user);
+  //   if (!profile) {
+  //     return profile;
+  //   }
+
+  //   const effectivePermissions = await this.permissionsService.getEffectivePermissionsForUser(
+  //     Number(profile.id),
+  //     profile.role,
+  //   );
+
+  //   return {
+  //     ...profile,
+  //     permissions: effectivePermissions.permissionKeys,
+  //     hasCustomPermissions: effectivePermissions.hasCustomConfiguration,
+  //   };
   }
 
   async updateProfile(userId: number, dto: UpdateProfileDto) {

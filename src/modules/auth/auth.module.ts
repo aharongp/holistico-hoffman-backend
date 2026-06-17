@@ -7,6 +7,7 @@ import { PrismaModule } from 'src/prisma/prisma.module';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { PatientModule } from '../patients/patient/patient.module';
 import { MailModule } from '../mail/mail.module';
+import { PermissionsModule } from '../permissions/permissions.module';
 
 @Module({
   controllers: [AuthController],
@@ -14,6 +15,7 @@ import { MailModule } from '../mail/mail.module';
     PrismaModule,
     PatientModule,
     MailModule,
+    PermissionsModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
     JwtModule.register({
       secret: process.env.JWT_SECRET ?? 'development-secret',

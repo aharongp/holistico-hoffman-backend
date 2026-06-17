@@ -13,6 +13,7 @@ import {
   Res,
   StreamableFile,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -23,6 +24,9 @@ import { UpdatePatientProgramDto } from './dto/update-patient-program.dto';
 import type { UpdateHistoryDto } from '../history/dto/update-history.dto';
 import type { Response } from 'express';
 import { memoryStorage } from 'multer';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { PermissionsGuard } from '../../permissions/guards/permissions.guard';
+import { RequirePermission } from '../../permissions/decorators/require-permission.decorator';
 
 const PATIENT_ATTACHMENT_UPLOAD_INTERCEPTOR = FileInterceptor('file', {
   storage: memoryStorage(),
@@ -32,24 +36,29 @@ const PATIENT_ATTACHMENT_UPLOAD_INTERCEPTOR = FileInterceptor('file', {
 });
 
 @Controller('patient')
+// @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class PatientController {
   constructor(private readonly patientService: PatientService) {}
 
+  // @RequirePermission('patients.create')
   @Post()
   create(@Body() createPatientDto: CreatePatientDto) {
     return this.patientService.create(createPatientDto);
   }
 
+  // @RequirePermission('patients.view')
   @Get()
   findAll() {
     return this.patientService.findAll();
   }
 
+  // @RequirePermission('patients.view')
   @Get('attachments')
   getAllAttachments() {
     return this.patientService.getAllAttachments();
   }
 
+  // @RequirePermission('patients.update')
   @Post(':id/attachments')
   @UseInterceptors(PATIENT_ATTACHMENT_UPLOAD_INTERCEPTOR)
   async uploadAttachment(
@@ -76,6 +85,7 @@ export class PatientController {
     });
   }
 
+  // @RequirePermission('patients.update')
   @Post('user/:userId/attachments')
   @UseInterceptors(PATIENT_ATTACHMENT_UPLOAD_INTERCEPTOR)
   async uploadAttachmentByUserId(
@@ -102,6 +112,7 @@ export class PatientController {
     });
   }
 
+  // @RequirePermission('patients.view')
   @Get('attachments/:attachmentId/download')
   async downloadAttachment(
     @Param('attachmentId', ParseIntPipe) attachmentId: number,
@@ -116,6 +127,7 @@ export class PatientController {
     return new StreamableFile(file.stream);
   }
 
+  // @RequirePermission('patients.view')
   @Get('user/:userId/history')
   async getMedicalHistoryByUserId(
     @Param('userId', ParseIntPipe) userId: number,
@@ -129,6 +141,7 @@ export class PatientController {
     return history;
   }
 
+  // @RequirePermission('patients.view')
   @Get('user/:userId/attachments')
   async getAttachmentsByUserId(@Param('userId', ParseIntPipe) userId: number) {
     const attachments =
@@ -136,6 +149,7 @@ export class PatientController {
     return attachments;
   }
 
+  // @RequirePermission('patients.update')
   @Put('user/:userId/history')
   updateMedicalHistoryByUserId(
     @Param('userId', ParseIntPipe) userId: number,
@@ -144,21 +158,25 @@ export class PatientController {
     return this.patientService.updateMedicalHistoryByUserId(userId, payload);
   }
 
+  // @RequirePermission('patients.view')
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.patientService.findOne(+id);
   }
 
+  // @RequirePermission('patients.view')
   @Get(':id/history')
   getMedicalHistory(@Param('id', ParseIntPipe) id: number) {
     return this.patientService.getMedicalHistory(id);
   }
 
+  // @RequirePermission('patients.view')
   @Get(':id/attachments')
   getAttachments(@Param('id', ParseIntPipe) id: number) {
     return this.patientService.getAttachments(id);
   }
 
+  // @RequirePermission('patients.update')
   @Put(':id/history')
   updateMedicalHistory(
     @Param('id', ParseIntPipe) id: number,
@@ -167,11 +185,13 @@ export class PatientController {
     return this.patientService.updateMedicalHistory(id, payload);
   }
 
+  // @RequirePermission('patients.update')
   @Patch(':id')
   update(@Param('id') id: string, @Body() updatePatientDto: UpdatePatientDto) {
     return this.patientService.update(+id, updatePatientDto);
   }
 
+  // @RequirePermission('patients.assign')
   @Patch(':id/program')
   assignProgram(
     @Param('id', ParseIntPipe) id: number,
@@ -187,6 +207,7 @@ export class PatientController {
     return this.patientService.assignProgram(id, programPayload ?? null);
   }
 
+  // @RequirePermission('patients.delete')
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.patientService.remove(+id);

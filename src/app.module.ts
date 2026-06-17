@@ -12,6 +12,7 @@ import { PatientsModule } from './modules/patients/patients.module';
 import { CosmobiologyModule } from './modules/cosmobiology/cosmobiology.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import type { ServeStaticModuleOptions } from '@nestjs/serve-static';
 import { join } from 'path';
@@ -67,6 +68,7 @@ const createStaticAssetModules = (): DynamicModule[] => {
     CosmobiologyModule,
     PrismaModule,
     DashboardModule,
+    PermissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
