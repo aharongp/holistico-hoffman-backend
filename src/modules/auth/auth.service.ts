@@ -181,6 +181,7 @@ export class AuthService {
   }
 
   async validateUser(identifier: string, password: string) {
+    console.log(`[LOGIN INTENT] Intentando loguear a: ${identifier}`);
     const lowered = identifier.toLowerCase();
     const user = await this.prisma.usuario.findFirst({
       where: {
@@ -193,14 +194,16 @@ export class AuthService {
     });
 
     if (!user) {
+      console.log(`[LOGIN FAIL] Usuario no encontrado en DB para: ${identifier}`);
       return null;
     }
-
+    console.log(`[LOGIN INFO] Usuario encontrado. Rol: ${user.rol}, Activo: ${user.active}`);
     if (
       typeof user.active !== 'undefined' &&
       user.active !== null &&
       Number(user.active) === 0
     ) {
+      console.log(`[LOGIN FAIL] Usuario inactivo`);
       throw new UnauthorizedException('User is inactive');
     }
 
@@ -208,6 +211,8 @@ export class AuthService {
       password,
       user.password ?? '',
     );
+
+    console.log(`[LOGIN INFO] ¿Contraseña coincide?: ${passwordMatches}`);
     if (!passwordMatches) {
       return null;
     }
@@ -221,7 +226,7 @@ export class AuthService {
         contacto_telefono: true,
       },
     });
-
+    console.log(`[LOGIN SUCCESS] Validación pasada para coach.`);
     return {
       ...user,
       nombres: patient?.nombres ?? null,
