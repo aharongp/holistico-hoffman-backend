@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { buildDefaultPasswordHash } from './user-password.util';
+import { PatientService } from '../patients/patient/patient.service';
 
 export type PublicUser = {
   id: number;
@@ -18,7 +19,10 @@ export type PublicUser = {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly patientService: PatientService,
+  ) {}
 
   private joinNames(firstName: string, lastName: string): string {
     const parts = [firstName, lastName]
@@ -147,6 +151,9 @@ export class UsersService {
     }
 
     const username = this.joinNames(firstName, lastName);
+    const normalizedRole = role.toLowerCase();
+    const shouldCreatePatient =
+      normalizedRole === 'patient' || normalizedRole === 'paciente';
 
     const created = await this.prisma.usuario.create({
       data: {
@@ -160,13 +167,30 @@ export class UsersService {
         id: true,
         email: true,
         username: true,
-
         rol: true,
         created_at: true,
         updated_at: true,
         active: true,
       },
     });
+
+    if (shouldCreatePatient) {
+      try {
+        await this.patientService.create({
+          id_usuario: created.id,
+          nombres: firstName,
+          apellidos: lastName,
+          contacto_correo: email,
+          contacto: username,
+          activo: 1,
+          user_role: role,
+        } as any);
+      } catch (error) {
+        await this.prisma.usuario.delete({ where: { id: created.id } }).catch(() => undefined);
+        throw error;
+      }
+    }
+
     return this.mapUser(created, { firstName, lastName });
   }
 
