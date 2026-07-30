@@ -76,6 +76,23 @@ export class VitalsController {
     return this.vitalsService.registerWeightByUser(userId, dto);
   }
 
+  @Patch('patient/:patientId/weight/:recordId')
+  updateWeight(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+    @Body() dto: UpdateVitalDto,
+  ) {
+    return this.vitalsService.updateWeight(patientId, recordId, dto);
+  }
+
+  @Delete('patient/:patientId/weight/:recordId')
+  deleteWeight(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+  ) {
+    return this.vitalsService.deleteWeight(patientId, recordId);
+  }
+
   @Patch('user/:userId/weight/:recordId')
   updateWeightByUser(
     @Param('userId', ParseIntPipe) userId: number,
@@ -109,6 +126,23 @@ export class VitalsController {
     return this.vitalsService.registerPulseByUser(userId, dto);
   }
 
+  @Patch('patient/:patientId/pulse/:recordId')
+  updatePulse(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+    @Body() dto: UpdatePulseDto,
+  ) {
+    return this.vitalsService.updatePulse(patientId, recordId, dto);
+  }
+
+  @Delete('patient/:patientId/pulse/:recordId')
+  deletePulse(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+  ) {
+    return this.vitalsService.deletePulse(patientId, recordId);
+  }
+
   @Patch('user/:userId/pulse/:recordId')
   updatePulseByUser(
     @Param('userId', ParseIntPipe) userId: number,
@@ -140,6 +174,23 @@ export class VitalsController {
     @Body() dto: CreateHeartRateDto,
   ) {
     return this.vitalsService.registerHeartRateByUser(userId, dto);
+  }
+
+  @Patch('patient/:patientId/heart-rate/:recordId')
+  updateHeartRate(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+    @Body() dto: UpdateHeartRateDto,
+  ) {
+    return this.vitalsService.updateHeartRate(patientId, recordId, dto);
+  }
+
+  @Delete('patient/:patientId/heart-rate/:recordId')
+  deleteHeartRate(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+  ) {
+    return this.vitalsService.deleteHeartRate(patientId, recordId);
   }
 
   @Patch('user/:userId/heart-rate/:recordId')
@@ -205,6 +256,38 @@ export class VitalsController {
     });
   }
 
+  @Patch('patient/:patientId/body-mass/:recordId')
+  @UseInterceptors(BODY_MASS_UPLOAD_INTERCEPTOR)
+  updateBodyMass(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+    @Body() dto: UpdateBodyMassDto,
+    @UploadedFiles()
+    files?: {
+      fotoRostro?: Express.Multer.File[];
+      fotoCuerpoFrente?: Express.Multer.File[];
+      fotoCuerpoPerfil?: Express.Multer.File[];
+      fotoEspaldaEntero?: Express.Multer.File[];
+      fotoExtra?: Express.Multer.File[];
+    },
+  ) {
+    return this.vitalsService.updateBodyMass(patientId, recordId, dto, {
+      face: files?.fotoRostro?.[0] ?? null,
+      front: files?.fotoCuerpoFrente?.[0] ?? null,
+      profile: files?.fotoCuerpoPerfil?.[0] ?? null,
+      back: files?.fotoEspaldaEntero?.[0] ?? null,
+      extra: files?.fotoExtra?.[0] ?? null,
+    });
+  }
+
+  @Delete('patient/:patientId/body-mass/:recordId')
+  deleteBodyMass(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+  ) {
+    return this.vitalsService.deleteBodyMass(patientId, recordId);
+  }
+
   @Patch('user/:userId/body-mass/:recordId')
   @UseInterceptors(BODY_MASS_UPLOAD_INTERCEPTOR)
   updateBodyMassByUser(
@@ -253,6 +336,23 @@ export class VitalsController {
     return this.vitalsService.registerGlycemiaByUser(userId, dto);
   }
 
+  @Patch('patient/:patientId/glycemia/:recordId')
+  updateGlycemia(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+    @Body() dto: UpdateGlycemiaDto,
+  ) {
+    return this.vitalsService.updateGlycemia(patientId, recordId, dto);
+  }
+
+  @Delete('patient/:patientId/glycemia/:recordId')
+  deleteGlycemia(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+  ) {
+    return this.vitalsService.deleteGlycemia(patientId, recordId);
+  }
+
   @Patch('user/:userId/glycemia/:recordId')
   updateGlycemiaByUser(
     @Param('userId', ParseIntPipe) userId: number,
@@ -284,6 +384,23 @@ export class VitalsController {
     @Body() dto: CreateBloodPressureDto,
   ) {
     return this.vitalsService.registerBloodPressureByUser(userId, dto);
+  }
+
+  @Patch('patient/:patientId/blood-pressure/:recordId')
+  updateBloodPressure(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+    @Body() dto: UpdateBloodPressureDto,
+  ) {
+    return this.vitalsService.updateBloodPressure(patientId, recordId, dto);
+  }
+
+  @Delete('patient/:patientId/blood-pressure/:recordId')
+  deleteBloodPressure(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+  ) {
+    return this.vitalsService.deleteBloodPressure(patientId, recordId);
   }
 
   @Patch('user/:userId/blood-pressure/:recordId')

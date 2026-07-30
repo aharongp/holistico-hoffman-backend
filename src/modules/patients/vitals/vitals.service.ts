@@ -215,7 +215,9 @@ export class VitalsService {
 
   private async resolvePatientIdByUser(userId: number): Promise<number> {
     const patient = await this.prisma.paciente.findFirst({
-      where: { id_usuario: userId },
+      where: {
+        OR: [{ id_usuario: userId }, { id: userId }],
+      },
       select: { id: true },
     });
 
