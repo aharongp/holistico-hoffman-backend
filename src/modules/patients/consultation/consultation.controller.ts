@@ -4,6 +4,7 @@ import {
   Post,
   Body,
   Patch,
+  Put,
   Param,
   Delete,
   Query,
@@ -42,6 +43,7 @@ export class ConsultationController {
   }
 
   @Patch(':id')
+  @Put(':id')
   update(
     @Param('id') id: string,
     @Body() updateConsultationDto: UpdateConsultationDto,

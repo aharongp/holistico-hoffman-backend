@@ -44,6 +44,82 @@ import {
 } from './utils/formulas.util';
 import { MailService } from 'src/modules/mail/mail.service';
 
+const WHEEL_OF_LIFE_TOPIC_GROUPS = [
+  { label: 'FAMILIA', topicIds: [122, 163, 58, 225] },
+  {
+    label: 'SALUD',
+    topicIds: [
+      35, 53, 54, 46, 47, 62, 56, 57, 70, 55, 65, 66, 67, 51, 52, 63, 64, 69,
+      87, 82, 83, 92, 123, 93, 99, 119, 120, 124, 158, 159, 228,
+    ],
+  },
+  { label: 'MANUTENCION', topicIds: [68, 88, 98, 116, 105, 108] },
+  { label: 'AMIGOS', topicIds: [45, 223] },
+  { label: 'RECREACION', topicIds: [73, 226] },
+  {
+    label: 'COMUNICACIÓN',
+    topicIds: [15, 16, 133, 121, 91, 78, 80, 28, 36, 37],
+  },
+  { label: 'ESTUDIOS', topicIds: [31, 48, 49, 42, 43, 102, 109, 125, 134, 135, 147] },
+  { label: 'FINANZAS', topicIds: [26, 224] },
+  { label: 'NEGOCIOS', topicIds: [161] },
+  {
+    label: 'ESPIRITUALIDAD',
+    topicIds: [128, 79, 113, 114, 115, 117, 127, 131, 126, 151, 162, 227],
+  },
+  { label: 'SEGURIDAD', topicIds: [95] },
+  { label: 'ORGANIZACIÓN', topicIds: [10, 140, 86, 50, 22, 153, 157, 229] },
+  { label: 'JUSTICIA', topicIds: [12, 138, 142, 144, 154] },
+  {
+    label: 'CRECIMIENTO PERSONAL',
+    topicIds: [
+      38, 39, 72, 61, 19, 156, 20, 155, 84, 89, 75, 130, 77, 94, 74, 132, 139,
+      160, 96, 146, 110, 101, 103, 104, 11, 141, 148, 13, 14, 143, 17, 18, 24,
+      25, 145, 149, 222,
+    ],
+  },
+] as const;
+
+const WHEEL_OF_LIFE_TOPICS = WHEEL_OF_LIFE_TOPIC_GROUPS.map(
+  (group) => group.label,
+);
+
+const WHEEL_OF_LIFE_TOPIC_IDS = WHEEL_OF_LIFE_TOPIC_GROUPS.flatMap(
+  (group) => group.topicIds,
+);
+
+const WHEEL_OF_LIFE_TOPIC_ID_TO_LABEL = new Map<number, string>(
+  WHEEL_OF_LIFE_TOPIC_GROUPS.flatMap((group) =>
+    group.topicIds.map((topicId) => [topicId, group.label] as const),
+  ),
+);
+
+const WHEEL_OF_LIFE_TOPIC_ALIASES: Record<string, string> = {
+  'autoestima y valoracion': 'CRECIMIENTO PERSONAL',
+  'desarrollo espititual': 'ESPIRITUALIDAD',
+  'desarrollo espiritual': 'ESPIRITUALIDAD',
+  'desarrollo profesional y dinero': 'FINANZAS',
+  'familia y relaciones interpersonales': 'FAMILIA',
+  'hobbies y recreacion': 'RECREACION',
+  'cantidad vs calidad de tiempo': 'ORGANIZACIÓN',
+  'salud fisica': 'SALUD',
+  'pareja y sexo': 'AMIGOS',
+  'comunicacion': 'COMUNICACIÓN',
+  'organizacion': 'ORGANIZACIÓN',
+  'crecimiento personal': 'CRECIMIENTO PERSONAL',
+  'finanzas': 'FINANZAS',
+  'negocios': 'NEGOCIOS',
+  'seguridad': 'SEGURIDAD',
+  'justicia': 'JUSTICIA',
+  'estudios': 'ESTUDIOS',
+  'amigos': 'AMIGOS',
+  'familia': 'FAMILIA',
+  'salud': 'SALUD',
+  'recreacion': 'RECREACION',
+  'espiritualidad': 'ESPIRITUALIDAD',
+  'manutencion': 'MANUTENCION',
+};
+
 export type AggregatedResultsDateOptions = {
   attitudinalDate?: string | null;
   firmnessAdaptabilityDate?: string | null;
@@ -227,6 +303,48 @@ export class PatientInstrumentsService {
     }
 
     return assignment;
+  }
+
+  private normalizeWheelTopic(value: string): string {
+    return value
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, ' ')
+      .trim();
+  }
+
+  private resolveWheelOfLifeTopic(value: string): string | null {
+    const normalizedValue = this.normalizeWheelTopic(value);
+    if (!normalizedValue) {
+      return null;
+    }
+
+    return (
+      WHEEL_OF_LIFE_TOPIC_ALIASES[normalizedValue] ??
+      WHEEL_OF_LIFE_TOPICS.find(
+        (topic) => this.normalizeWheelTopic(topic) === normalizedValue,
+      ) ??
+      null
+    );
+  }
+
+  private resolveWheelOfLifeGroup(
+    topicId: number | null,
+    topicName: string | null,
+  ): string | null {
+    if (topicId !== null) {
+      const resolvedById = WHEEL_OF_LIFE_TOPIC_ID_TO_LABEL.get(topicId);
+      if (resolvedById) {
+        return resolvedById;
+      }
+    }
+
+    if (topicName) {
+      return this.resolveWheelOfLifeTopic(topicName);
+    }
+
+    return null;
   }
 
   async createBulk(
@@ -1387,29 +1505,70 @@ export class PatientInstrumentsService {
     };
 
     const wheelOfLifeRaw = await this.prisma.$queryRaw<
-      Array<{ topic: string | null; promedio: number | null }>
+      Array<{
+        topicId: number | null;
+        topic: string | null;
+        promedio: number | null;
+        cantidad: number | null;
+      }>
     >`
       SELECT
-        t.nombre AS topic,
+        t.id AS topicId,
+        COALESCE(p.topico, t.nombre) AS topic,
         AVG(CAST(p.respuesta AS DOUBLE PRECISION)) AS promedio
+        ,COUNT(*) AS cantidad
       FROM paciente_instrumento_respuesta p
-      INNER JOIN pregunta q ON p.id_pregunta = q.id
-      INNER JOIN topico t ON q.id_topico = t.id
+      LEFT JOIN pregunta q ON p.id_pregunta = q.id
+      LEFT JOIN topico t ON q.id_topico = t.id
       WHERE p.id_paciente = ${patientId}
-        AND p.tipo_instrumento = 'rueda-vida'
         AND p.evaluado = 0
+        AND (
+          p.tipo_instrumento = 'rueda-vida'
+          OR q.id_topico IN (${Prisma.join(WHEEL_OF_LIFE_TOPIC_IDS)})
+        )
         ${wellnessLifeFilter}
-      GROUP BY t.nombre
-      ORDER BY t.nombre
+      GROUP BY t.id, COALESCE(p.topico, t.nombre)
+      ORDER BY COALESCE(p.topico, t.nombre)
     `;
 
-    const wheelOfLife: WheelResult[] = wheelOfLifeRaw.map((row) => {
+    const wheelOfLifeLookup = new Map<
+      string,
+      { sum: number; count: number }
+    >();
+
+    for (const row of wheelOfLifeRaw) {
+      const group = this.resolveWheelOfLifeGroup(row.topicId ?? null, row.topic);
+      if (!group) {
+        continue;
+      }
+
       const average = this.toNumeric(row.promedio);
-      return {
-        topic: row.topic ?? null,
-        average: Number(average.toFixed(2)),
-      } satisfies WheelResult;
-    });
+      const count = this.toNumeric(row.cantidad);
+      if (!count) {
+        continue;
+      }
+
+      const current = wheelOfLifeLookup.get(group) ?? { sum: 0, count: 0 };
+      current.sum += average * count;
+      current.count += count;
+      wheelOfLifeLookup.set(group, current);
+    }
+
+    const wheelOfLife: WheelResult[] = WHEEL_OF_LIFE_TOPICS.map((topic) => ({
+      topic,
+      average: Number(
+        (
+          (() => {
+            const aggregated = wheelOfLifeLookup.get(topic);
+            if (!aggregated || !aggregated.count) {
+              return 0;
+            }
+
+            return aggregated.sum / aggregated.count;
+          })()
+        ).toFixed(2),
+      ),
+    }));
 
     const wheelOfHealthRaw = await this.prisma.$queryRaw<
       Array<{ topic: string | null; promedio: number | null }>
