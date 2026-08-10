@@ -139,7 +139,8 @@ export class ConsultationService {
           'El identificador del paciente es obligatorio',
         );
       }
-      const parsed = Number(trimmed);
+      const digits = trimmed.match(/\d+/);
+      const parsed = digits ? Number(digits[0]) : Number(trimmed);
       return this.parseIdentifier(parsed, 'del paciente');
     }
 
