@@ -261,7 +261,16 @@ export class HistoryService {
   }
 
   private async loadPatientByUserId(userId: number): Promise<paciente | null> {
-    return this.prisma.paciente.findFirst({ where: { id_usuario: userId } });
+    const patientByUser = await this.prisma.paciente.findFirst({
+      where: { id_usuario: userId },
+      orderBy: [{ activo: 'desc' }, { updated_at: 'desc' }, { id: 'desc' }],
+    });
+
+    if (patientByUser) {
+      return patientByUser;
+    }
+
+    return this.prisma.paciente.findUnique({ where: { id: userId } });
   }
 
   private async loadAntecedent(

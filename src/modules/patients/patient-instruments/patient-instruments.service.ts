@@ -1951,18 +1951,28 @@ export class PatientInstrumentsService {
   }
 
   private async resolvePatientIdByUser(userId: number): Promise<number> {
-    const patient = await this.prisma.paciente.findFirst({
+    const patientByUser = await this.prisma.paciente.findFirst({
       where: { id_usuario: userId },
+      orderBy: [{ activo: 'desc' }, { updated_at: 'desc' }, { id: 'desc' }],
       select: { id: true },
     });
 
-    if (!patient) {
-      throw new NotFoundException(
-        'Paciente no encontrado para el usuario proporcionado',
-      );
+    if (patientByUser) {
+      return patientByUser.id;
     }
 
-    return patient.id;
+    const patientById = await this.prisma.paciente.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    });
+
+    if (patientById) {
+      return patientById.id;
+    }
+
+    throw new NotFoundException(
+      'Paciente no encontrado para el usuario proporcionado',
+    );
   }
 
   private async mapAssignments(

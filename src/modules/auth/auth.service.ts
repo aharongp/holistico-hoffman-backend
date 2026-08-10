@@ -214,7 +214,9 @@ export class AuthService {
 
     const patient = await this.prisma.paciente.findFirst({
       where: { id_usuario: user.id },
+      orderBy: [{ activo: 'desc' }, { updated_at: 'desc' }, { id: 'desc' }],
       select: {
+        id: true,
         nombres: true,
         apellidos: true,
         contacto_correo: true,
@@ -223,6 +225,7 @@ export class AuthService {
     });
     return {
       ...user,
+      patientId: patient?.id ?? null,
       nombres: patient?.nombres ?? null,
       apellidos: patient?.apellidos ?? null,
       contacto_correo: patient?.contacto_correo ?? null,
@@ -264,6 +267,7 @@ export class AuthService {
 
     return {
       id: user.id,
+      patientId: user.patientId ?? user.id_paciente ?? null,
       username: user.username ?? '',
       email: user.email ?? '',
       firstName,
@@ -641,7 +645,9 @@ export class AuthService {
 
     const patient = await this.prisma.paciente.findFirst({
       where: { id_usuario: userId },
+      orderBy: [{ activo: 'desc' }, { updated_at: 'desc' }, { id: 'desc' }],
       select: {
+        id: true,
         nombres: true,
         apellidos: true,
         contacto_correo: true,
@@ -651,6 +657,7 @@ export class AuthService {
 
     return {
       ...user,
+      patientId: patient?.id ?? null,
       nombres: patient?.nombres ?? null,
       apellidos: patient?.apellidos ?? null,
       contacto_correo: patient?.contacto_correo ?? null,

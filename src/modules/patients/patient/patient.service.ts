@@ -653,9 +653,10 @@ export class PatientService {
   }
 
   async uploadAttachmentByUserId(userId: number, file: UploadableAttachment) {
-    const patientRecord = await this.prisma.paciente.findFirst({
+    const patientRecord = (await this.prisma.paciente.findFirst({
       where: { id_usuario: userId },
-    });
+      orderBy: [{ activo: 'desc' }, { updated_at: 'desc' }, { id: 'desc' }],
+    })) ?? (await this.prisma.paciente.findUnique({ where: { id: userId } }));
     if (!patientRecord) {
       throw new NotFoundException('Patient not found for the provided user');
     }
@@ -675,9 +676,10 @@ export class PatientService {
   }
 
   async getAttachmentsByUserId(userId: number) {
-    const patientRecord = await this.prisma.paciente.findFirst({
+    const patientRecord = (await this.prisma.paciente.findFirst({
       where: { id_usuario: userId },
-    });
+      orderBy: [{ activo: 'desc' }, { updated_at: 'desc' }, { id: 'desc' }],
+    })) ?? (await this.prisma.paciente.findUnique({ where: { id: userId } }));
     if (!patientRecord) {
       return [] as any[];
     }
