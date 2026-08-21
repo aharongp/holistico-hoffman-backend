@@ -1975,6 +1975,20 @@ export class PatientInstrumentsService {
     );
   }
 
+  private cleanTopicName(name: string): string {
+    const trimmed = name.trim();
+    if (trimmed.length > 70 && trimmed.includes('.')) {
+      const match = trimmed.match(/^([^.]{5,70}\.)/);
+      if (match) {
+        const candidate = match[1].replace(/\.$/, '').trim();
+        if (/[a-zA-ZáéíóúñÁÉÍÓÚÑ]/.test(candidate) && candidate.length >= 5) {
+          return candidate;
+        }
+      }
+    }
+    return trimmed;
+  }
+
   private async mapAssignments(
     records: paciente_instrumento[],
   ): Promise<PatientInstrumentAssignment[]> {
@@ -2011,10 +2025,81 @@ export class PatientInstrumentsService {
       ]),
     );
 
+    const rawTopicsMap = new Map<number, string[]>();
+    const explicitTemaIds = new Set<number>();
+    const typesNeedingTemas = new Set<number>();
+
+    for (const record of records) {
+      const parsed = this.parseTopics(record.array_tema);
+      rawTopicsMap.set(record.id, parsed);
+
+      if (parsed.length > 0) {
+        for (const item of parsed) {
+          const num = Number(item);
+          if (Number.isInteger(num) && num > 0) {
+            explicitTemaIds.add(num);
+          }
+        }
+      } else if (record.id_instrumento_tipo) {
+        typesNeedingTemas.add(record.id_instrumento_tipo);
+      }
+    }
+
+    const typeToTemasMap = new Map<number, number[]>();
+    if (typesNeedingTemas.size > 0) {
+      const instruments = await this.prisma.instrumento.findMany({
+        where: {
+          id_instrumento_tipo: { in: Array.from(typesNeedingTemas) },
+          activo: 1,
+        },
+        select: { id_instrumento_tipo: true, id_tema: true },
+      });
+
+      for (const inst of instruments) {
+        if (inst.id_instrumento_tipo && inst.id_tema) {
+          explicitTemaIds.add(inst.id_tema);
+          const existing = typeToTemasMap.get(inst.id_instrumento_tipo) ?? [];
+          if (!existing.includes(inst.id_tema)) {
+            existing.push(inst.id_tema);
+          }
+          typeToTemasMap.set(inst.id_instrumento_tipo, existing);
+        }
+      }
+    }
+
+    const temaList = explicitTemaIds.size > 0
+      ? await this.prisma.tema.findMany({
+          where: { id: { in: Array.from(explicitTemaIds) } },
+          select: { id: true, nombre: true },
+        })
+      : [];
+
+    const temaNameMap = new Map<number, string>(
+      temaList.map((t) => [t.id, t.nombre ? this.cleanTopicName(t.nombre) : '']),
+    );
+
     return records.map<PatientInstrumentAssignment>((record) => {
       const typeInfo = record.id_instrumento_tipo
         ? (instrumentTypeMap.get(record.id_instrumento_tipo) ?? null)
         : null;
+
+      const parsedTopics = rawTopicsMap.get(record.id) ?? [];
+      let resolvedTopics: string[] = [];
+
+      if (parsedTopics.length > 0) {
+        resolvedTopics = parsedTopics.map((topicStr) => {
+          const numericId = Number(topicStr);
+          if (Number.isInteger(numericId) && temaNameMap.has(numericId)) {
+            return temaNameMap.get(numericId) || topicStr;
+          }
+          return topicStr;
+        });
+      } else if (record.id_instrumento_tipo && typeToTemasMap.has(record.id_instrumento_tipo)) {
+        const temaIdsForType = typeToTemasMap.get(record.id_instrumento_tipo) ?? [];
+        resolvedTopics = temaIdsForType
+          .map((tId) => temaNameMap.get(tId) ?? '')
+          .filter(Boolean);
+      }
 
       return {
         id: record.id,
@@ -2033,7 +2118,7 @@ export class PatientInstrumentsService {
         availabilityRaw: this.toStringOrNull(record.disponible),
         origin: record.origen ?? null,
         ribbonId: record.id_cinta ?? null,
-        topics: this.parseTopics(record.array_tema),
+        topics: resolvedTopics,
       };
     });
   }
