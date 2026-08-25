@@ -353,11 +353,6 @@ export class PatientInstrumentsService {
     const patientIds = Array.isArray(createBulkPatientInstrumentDto.patientIds)
       ? createBulkPatientInstrumentDto.patientIds
       : [];
-    const instrumentTypeIds = Array.isArray(
-      createBulkPatientInstrumentDto.instrumentTypeIds,
-    )
-      ? createBulkPatientInstrumentDto.instrumentTypeIds
-      : [];
 
     if (!patientIds.length) {
       throw new BadRequestException(
@@ -365,9 +360,45 @@ export class PatientInstrumentsService {
       );
     }
 
-    if (!instrumentTypeIds.length) {
+    let targetItems: Array<{
+      instrumentTypeId: number | string | null;
+      array_tema?: string | string[] | null;
+      topics?: string[] | string | null;
+      disponible?: string | boolean | null;
+    }> = [];
+
+    if (
+      Array.isArray(createBulkPatientInstrumentDto.items) &&
+      createBulkPatientInstrumentDto.items.length > 0
+    ) {
+      targetItems = createBulkPatientInstrumentDto.items.map((item) => ({
+        instrumentTypeId:
+          item.instrumentTypeId ?? item.id_instrumento_tipo ?? null,
+        array_tema: item.array_tema ?? item.topics ?? null,
+        topics: item.topics ?? item.array_tema ?? null,
+        disponible: item.disponible ?? item.available ?? null,
+      }));
+    } else {
+      const rawInstrumentTypeIds = Array.isArray(
+        createBulkPatientInstrumentDto.instrumentTypeIds,
+      )
+        ? createBulkPatientInstrumentDto.instrumentTypeIds
+        : [];
+      const uniqueTypeIds = Array.from(
+        new Set(
+          rawInstrumentTypeIds.filter(
+            (id): id is string | number => id !== null && id !== undefined,
+          ),
+        ),
+      );
+      targetItems = uniqueTypeIds.map((typeId) => ({
+        instrumentTypeId: typeId,
+      }));
+    }
+
+    if (!targetItems.length) {
       throw new BadRequestException(
-        'Debes seleccionar al menos un tipo de instrumento para la asignación por lote.',
+        'Debes seleccionar al menos un instrumento para la asignación por lote.',
       );
     }
 
@@ -376,8 +407,8 @@ export class PatientInstrumentsService {
     for (const rawPatientId of patientIds) {
       const patientId = this.normalizeNumber(rawPatientId);
 
-      for (const rawInstrumentTypeId of instrumentTypeIds) {
-        const instrumentTypeId = this.normalizeNumber(rawInstrumentTypeId);
+      for (const item of targetItems) {
+        const instrumentTypeId = this.normalizeNumber(item.instrumentTypeId);
 
         if (patientId === null || instrumentTypeId === null) {
           results.push({
@@ -394,7 +425,6 @@ export class PatientInstrumentsService {
           id_instrumento_tipo: instrumentTypeId,
         };
 
-        // Only forward optional fields that were actually sent in the bulk payload.
         if (
           this.hasAnyKey(createBulkPatientInstrumentDto, [
             'fecha_instrumento',
@@ -417,16 +447,12 @@ export class PatientInstrumentsService {
             (createBulkPatientInstrumentDto as any).validUntil;
         }
 
-        if (
-          this.hasAnyKey(createBulkPatientInstrumentDto, [
-            'disponible',
-            'available',
-          ])
-        ) {
-          payload.disponible =
-            (createBulkPatientInstrumentDto as any).disponible ??
-            (createBulkPatientInstrumentDto as any).available;
-        }
+        const itemAvailability = item.disponible;
+        const globalAvailability =
+          (createBulkPatientInstrumentDto as any).disponible ??
+          (createBulkPatientInstrumentDto as any).available;
+
+        payload.disponible = itemAvailability ?? globalAvailability ?? 'paciente';
 
         if (this.hasAnyKey(createBulkPatientInstrumentDto, ['origen', 'origin'])) {
           payload.origen =
@@ -434,13 +460,12 @@ export class PatientInstrumentsService {
             (createBulkPatientInstrumentDto as any).origin;
         }
 
-        if (
-          this.hasAnyKey(createBulkPatientInstrumentDto, ['array_tema', 'topics'])
-        ) {
-          payload.array_tema =
-            (createBulkPatientInstrumentDto as any).array_tema ??
-            (createBulkPatientInstrumentDto as any).topics;
-        }
+        const itemTopics = item.array_tema ?? item.topics;
+        const globalTopics =
+          (createBulkPatientInstrumentDto as any).array_tema ??
+          (createBulkPatientInstrumentDto as any).topics;
+
+        payload.array_tema = itemTopics ?? globalTopics;
 
         if (
           this.hasAnyKey(createBulkPatientInstrumentDto, [
@@ -486,7 +511,7 @@ export class PatientInstrumentsService {
     const failedCount = results.length - createdCount;
 
     return {
-      requestedPairs: patientIds.length * instrumentTypeIds.length,
+      requestedPairs: patientIds.length * targetItems.length,
       createdCount,
       failedCount,
       results,
@@ -1942,12 +1967,20 @@ export class PatientInstrumentsService {
   }
 
   private normalizeAvailability(value: unknown): string | null {
-    const flag = this.normalizeBoolean(value);
-    if (flag === null) {
+    if (value === null || value === undefined) {
       return null;
     }
-
-    return flag ? '1' : '0';
+    if (typeof value === 'boolean') {
+      return value ? '1' : '0';
+    }
+    if (typeof value === 'number') {
+      return Number.isFinite(value) ? String(value) : null;
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed.length ? trimmed : null;
+    }
+    return null;
   }
 
   private async resolvePatientIdByUser(userId: number): Promise<number> {
