@@ -19,9 +19,8 @@ import { UpdateHeartRateDto } from './dto/update-heart-rate.dto';
 import { UpdateBodyMassDto } from './dto/update-body-mass.dto';
 import { UpdateGlycemiaDto } from './dto/update-glycemia.dto';
 import { UpdateBloodPressureDto } from './dto/update-blood-pressure.dto';
-import { existsSync } from 'fs';
-import { mkdir, unlink, writeFile } from 'fs/promises';
-import { extname, isAbsolute, join, relative, resolve } from 'path';
+import { extname, join } from 'path';
+import { FileStorageService } from '../../storage/file-storage.service';
 import { randomBytes } from 'crypto';
 import sharp from 'sharp';
 
@@ -49,29 +48,9 @@ type BodyMassImageType =
 
 @Injectable()
 export class VitalsService {
-  private readonly bodyMassImagesDir = (() => {
-    const candidates = [
-      join(process.cwd(), 'assets', 'images'),
-      join(process.cwd(), 'src', 'assets', 'images'),
-      join(process.cwd(), 'dist', 'assets', 'images'),
-      join(__dirname, '..', '..', '..', 'assets', 'images'),
-    ];
+  private readonly bodyMassImageTargetPixels = 1600;
 
-    for (const candidate of candidates) {
-      if (existsSync(candidate)) {
-        return candidate;
-      }
-    }
-
-    return candidates[0];
-  })();
-
-  private readonly bodyMassImageTargetPixels = Math.max(
-    1,
-    Math.round((4 / 2.54) * 96),
-  );
-
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService, private readonly storage: FileStorageService) {}
 
   private guessExtension(mime?: string | null): string | null {
     const normalized = mime?.toLowerCase().trim();
@@ -92,26 +71,6 @@ export class VitalsService {
     }
     const trimmed = value.toString().trim();
     return trimmed.length ? trimmed : null;
-  }
-
-  private resolveBodyMassImageAbsolutePath(relativePath: string): string {
-    const sanitized = relativePath.replace(/\\/g, '/').replace(/^\/+/, '');
-    if (!sanitized) {
-      throw new BadRequestException('Ruta de imagen inválida.');
-    }
-
-    const withoutPrefix = sanitized.startsWith('images/')
-      ? sanitized.slice('images/'.length)
-      : sanitized;
-
-    const absolutePath = resolve(this.bodyMassImagesDir, withoutPrefix);
-    const diff = relative(this.bodyMassImagesDir, absolutePath);
-
-    if (diff.startsWith('..') || isAbsolute(diff)) {
-      throw new BadRequestException('Ruta de imagen inválida.');
-    }
-
-    return absolutePath;
   }
 
   private async storeBodyMassImage(
@@ -149,12 +108,13 @@ export class VitalsService {
       extension = '.jpg';
     }
 
+    extension = extension === '.png' ? '.png' : '.jpg';
     const targetFormat = extension === '.png' ? 'png' : 'jpeg';
     const processedBuffer = await sharp(file.buffer)
       .rotate()
       .resize(this.bodyMassImageTargetPixels, this.bodyMassImageTargetPixels, {
-        fit: sharp.fit.cover,
-        position: 'center',
+        fit: sharp.fit.inside,
+        withoutEnlargement: true,
       })
       .toFormat(
         targetFormat,
@@ -169,15 +129,7 @@ export class VitalsService {
       'utf8',
     ).toString('base64url');
     const filename = `${uniqueToken}${extension}`;
-    const destinationDir = join(
-      this.bodyMassImagesDir,
-      imageType,
-      String(patientId),
-    );
-
-    await mkdir(destinationDir, { recursive: true });
-    const absolutePath = join(destinationDir, filename);
-    await writeFile(absolutePath, processedBuffer);
+    await this.storage.put(`images/${imageType}/${patientId}/${filename}`, processedBuffer);
 
     return join('images', imageType, String(patientId), filename).replace(
       /\\/g,
@@ -193,8 +145,7 @@ export class VitalsService {
     }
 
     try {
-      const absolutePath = this.resolveBodyMassImageAbsolutePath(relativePath);
-      await unlink(absolutePath).catch(() => undefined);
+      await this.storage.delete(relativePath.startsWith('images/') ? relativePath : `images/${relativePath}`);
     } catch {
       // Ignoramos errores de eliminación para no bloquear el flujo principal.
     }
@@ -569,7 +520,7 @@ export class VitalsService {
           id: entry.id,
           recordedAt: this.toIso(entry.fecha),
           value: normalizedBmi,
-          rawValue: normalizedBmi.toString(),
+          rawValue: normalizedBmi?.toString() ?? null,
           unit: 'kg/m²',
           source: 'body_mass',
         } satisfies NumericVitalRecord;
@@ -657,28 +608,16 @@ export class VitalsService {
     }> | null,
     heightInMeters: number | null,
   ): NumericVitalRecord[] {
-    if (!entries?.length || !heightInMeters || heightInMeters <= 0) {
-      return [];
-    }
+    if (!entries?.length) return [];
 
-    const denominator = heightInMeters * heightInMeters;
-    if (denominator <= 0) {
-      return [];
-    }
+    const denominator = heightInMeters && heightInMeters > 0
+      ? heightInMeters * heightInMeters : null;
 
     return entries
-      .map<NumericVitalRecord | null>((entry) => {
+      .map<NumericVitalRecord>((entry) => {
         const weightValue = this.toNumber(entry.peso);
-        if (weightValue === null) {
-          return null;
-        }
-
-        const bmi = weightValue / denominator;
-        if (!Number.isFinite(bmi)) {
-          return null;
-        }
-
-        const normalizedBmi = Number(bmi.toFixed(2));
+        const normalizedBmi = denominator && weightValue !== null
+          ? Number((weightValue / denominator).toFixed(2)) : null;
 
         return {
           id: entry.id,
@@ -688,7 +627,7 @@ export class VitalsService {
             entry.created_at,
           ),
           value: normalizedBmi,
-          rawValue: normalizedBmi.toString(),
+          rawValue: normalizedBmi?.toString() ?? null,
           unit: 'kg/m²',
           source: 'body_mass',
           photos: this.mapBodyMassPhotos(entry),
@@ -962,7 +901,7 @@ export class VitalsService {
     const created = await this.prisma.paciente_peso.create({
       data: {
         id_paciente: patientId,
-        peso: dto.peso ?? null,
+        peso: this.sanitizeBodyMassString(dto.peso),
         fecha: dto.fecha ? new Date(dto.fecha) : new Date(),
         created_at: new Date(),
         updated_at: new Date(),
@@ -1158,9 +1097,7 @@ export class VitalsService {
         fc_10_min_entrenamiento,
         fc_15_min,
         fc_30_min,
-        entrenamiento,
-        created_at,
-        updated_at
+        fc_45_min,
         entrenamiento,
         created_at,
         updated_at

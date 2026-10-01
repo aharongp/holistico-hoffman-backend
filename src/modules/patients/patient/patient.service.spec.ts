@@ -1,3 +1,4 @@
+import { HistoryService } from 'src/modules/patients/history/history.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { PatientService } from './patient.service';
@@ -8,6 +9,7 @@ describe('PatientService', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: HistoryService, useValue: {} },
         PatientService,
         {
           provide: PrismaService,

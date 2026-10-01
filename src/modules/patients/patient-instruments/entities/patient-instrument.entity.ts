@@ -15,6 +15,7 @@ export interface PatientInstrumentAssignment {
   origin: string | null;
   ribbonId: number | null;
   topics: string[];
+  instruments: Array<{ id: number; name: string; subjectId: number | null; completed: boolean }>;
 }
 
 export interface PatientInstrumentResponse {

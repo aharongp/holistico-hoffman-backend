@@ -206,7 +206,7 @@ export class PatientService {
     const telefono = this.normalizeString(createPatientDto.telefono);
     const direccion = this.normalizeString(createPatientDto.direccion);
     const cedula = this.normalizeString((createPatientDto as any).cedula);
-    const programId = this.normalizeNumber(createPatientDto.id_programa);
+    const programId = this.normalizeNumber(createPatientDto.id_programa ?? (createPatientDto as any).programId);
     const explicitUserId = this.normalizeNumber(
       createPatientDto.id_usuario ?? (createPatientDto as any).userId,
     );
@@ -463,6 +463,10 @@ export class PatientService {
     return this.mapPatient(p);
   }
 
+  private hasAnyProgramKey(dto: object): boolean {
+    return ['id_programa', 'programId'].some(key => Object.prototype.hasOwnProperty.call(dto, key));
+  }
+
   async update(
     id: number,
     updatePatientDto: UpdatePatientDto,
@@ -507,7 +511,7 @@ export class PatientService {
         telefono: telefono ?? undefined,
         direccion: direccion ?? undefined,
         activo: typeof activeFlag === 'number' ? activeFlag : undefined,
-        id_programa: programId ?? undefined,
+        id_programa: this.hasAnyProgramKey(updatePatientDto) ? programId : undefined,
         contacto: contactName ?? undefined,
         contacto_correo: normalizedEmail ?? undefined,
         contacto_telefono: contactPhone ?? telefono ?? undefined,

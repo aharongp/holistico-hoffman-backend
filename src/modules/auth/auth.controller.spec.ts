@@ -1,3 +1,5 @@
+import { MailService } from 'src/modules/mail/mail.service';
+import { PatientService } from 'src/modules/patients/patient/patient.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { AuthController } from './auth.controller';
@@ -11,6 +13,8 @@ describe('AuthController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
       providers: [
+        { provide: MailService, useValue: {} },
+        { provide: PatientService, useValue: {} },
         AuthService,
         {
           provide: PrismaService,

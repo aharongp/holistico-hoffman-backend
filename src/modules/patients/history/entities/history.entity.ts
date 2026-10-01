@@ -222,6 +222,7 @@ export interface PatientOcularExam {
 }
 
 export interface PatientMedicalHistory {
+  alterations: Record<string, boolean>;
   personal: PatientPersonalHistory | null;
   contacts: PatientContactHistory | null;
   treatingDoctor: PatientTreatingDoctorHistory | null;

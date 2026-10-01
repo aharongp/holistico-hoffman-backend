@@ -204,7 +204,7 @@ export class PatientController {
       ? payload.programId
       : payload.id_programa;
 
-    return this.patientService.assignProgram(id, programPayload ?? null);
+    return this.patientService.assignProgram(id, programPayload);
   }
 
   // @RequirePermission('patients.delete')

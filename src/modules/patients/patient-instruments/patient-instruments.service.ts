@@ -452,7 +452,9 @@ export class PatientInstrumentsService {
           (createBulkPatientInstrumentDto as any).disponible ??
           (createBulkPatientInstrumentDto as any).available;
 
-        payload.disponible = itemAvailability ?? globalAvailability ?? 'paciente';
+        if (itemAvailability !== undefined || globalAvailability !== undefined) {
+          payload.disponible = itemAvailability ?? globalAvailability;
+        }
 
         if (this.hasAnyKey(createBulkPatientInstrumentDto, ['origen', 'origin'])) {
           payload.origen =
@@ -1795,15 +1797,33 @@ export class PatientInstrumentsService {
     const resolvedInstrumentTypeId =
       assignment.id_instrumento_tipo ?? dto.instrumentTypeId ?? null;
     const resolvedInstrumentId = dto.instrumentId ?? null;
+    const [mappedAssignment] = await this.mapAssignments([assignment]);
+    if (!resolvedInstrumentId || !mappedAssignment.instruments.some(item => item.id === resolvedInstrumentId)) {
+      throw new BadRequestException('El instrumento no corresponde a los temas de esta asignación.');
+    }
+    const instrument = await this.prisma.instrumento.findUnique({ where: { id: resolvedInstrumentId } });
+    const [subject, instrumentType, questions] = await Promise.all([
+      instrument?.id_tema ? this.prisma.tema.findUnique({ where: { id: instrument.id_tema } }) : null,
+      resolvedInstrumentTypeId ? this.prisma.instrumento_tipo.findUnique({ where: { id: resolvedInstrumentTypeId } }) : null,
+      this.prisma.pregunta.findMany({ where: { id_instrumento: resolvedInstrumentId } }),
+    ]);
+    const topics = await this.prisma.topico.findMany({ where: { id_instrumento: resolvedInstrumentId } });
+    const questionMap = new Map(questions.map(question => [question.id, question]));
+    const topicMap = new Map(topics.map(topic => [topic.id, topic.nombre]));
+    if (dto.answers.some(answer => !answer.questionId || !questionMap.has(answer.questionId))) {
+      throw new BadRequestException('Hay respuestas de preguntas que no pertenecen al instrumento.');
+    }
     const now = new Date();
 
     await this.prisma.$transaction(async (tx) => {
       await tx.paciente_instrumento_respuesta.deleteMany({
-        where: { id_paciente_instrumento: patientInstrumentId },
+        where: { id_paciente_instrumento: patientInstrumentId, id_instrumento: resolvedInstrumentId },
       });
 
-      const rows = dto.answers.map((answer, index) =>
-        this.buildResponseRow({
+      const rows = dto.answers.map((answer, index) => {
+        const question = questionMap.get(answer.questionId!)!;
+        return {
+        ...this.buildResponseRow({
           answer,
           assignment,
           patientId: resolvedPatientId,
@@ -1814,22 +1834,30 @@ export class PatientInstrumentsService {
           saveOnly: dto.saveOnly ?? false,
           overrideTheme: dto.theme ?? answer.theme ?? null,
           overrideTopic: dto.topic ?? answer.topic ?? null,
-          instrumentTypeName: dto.instrumentTypeName ?? null,
+          instrumentTypeName: subject?.tipo_instrumento ?? null,
         }),
-      );
+        id_criterio: instrumentType?.id_criterio ?? null,
+        id_tema: instrument?.id_tema ?? null,
+        tema: subject?.nombre ?? dto.theme ?? null,
+        topico: question.id_topico ? topicMap.get(question.id_topico) ?? null : null,
+        pregunta: question.nombre ?? answer.questionText ?? null,
+        orden: question.orden ?? index + 1,
+        };
+      });
 
       if (rows.length) {
         await tx.paciente_instrumento_respuesta.createMany({ data: rows });
       }
 
-      const shouldMarkCompleted = dto.saveOnly
-        ? false
-        : dto.markAsCompleted !== false;
+      const completedIds = new Set(mappedAssignment.instruments.filter(item => item.completed).map(item => item.id));
+      if (!dto.saveOnly && dto.markAsCompleted !== false) completedIds.add(resolvedInstrumentId);
+      else completedIds.delete(resolvedInstrumentId);
+      const shouldMarkCompleted = mappedAssignment.instruments.every(item => completedIds.has(item.id));
 
       await tx.paciente_instrumento.update({
         where: { id: patientInstrumentId },
         data: {
-          completado: shouldMarkCompleted ? 1 : (assignment.completado ?? 0),
+          completado: shouldMarkCompleted ? 1 : 0,
           updated_at: now,
           disponible: shouldMarkCompleted
             ? '0'
@@ -2058,8 +2086,18 @@ export class PatientInstrumentsService {
       ]),
     );
 
+    const candidates = await this.prisma.instrumento.findMany({
+      where: { id_instrumento_tipo: { in: instrumentTypeIds }, activo: 1 },
+      select: { id: true, id_instrumento_tipo: true, id_tema: true, descripcion: true },
+      orderBy: { id: 'asc' },
+    });
+    const completedResponses = await this.prisma.paciente_instrumento_respuesta.findMany({
+      where: { id_paciente_instrumento: { in: records.map(record => record.id) }, guardado: 0 },
+      select: { id_paciente_instrumento: true, id_instrumento: true },
+      distinct: ['id_paciente_instrumento', 'id_instrumento'],
+    });
     const rawTopicsMap = new Map<number, string[]>();
-    const explicitTemaIds = new Set<number>();
+    const explicitTemaIds = new Set<number>(candidates.flatMap(item => item.id_tema ? [item.id_tema] : []));
     const typesNeedingTemas = new Set<number>();
 
     for (const record of records) {
@@ -2152,6 +2190,18 @@ export class PatientInstrumentsService {
         origin: record.origen ?? null,
         ribbonId: record.id_cinta ?? null,
         topics: resolvedTopics,
+        instruments: candidates.filter(candidate => {
+          if (candidate.id_instrumento_tipo !== record.id_instrumento_tipo) return false;
+          if (!parsedTopics.length) return true;
+          const subjectName = candidate.id_tema ? temaNameMap.get(candidate.id_tema) : null;
+          return parsedTopics.some(topic => Number(topic) === candidate.id_tema ||
+            (subjectName && this.normalizeWheelTopic(this.cleanTopicName(topic)) === this.normalizeWheelTopic(subjectName)));
+        }).map(candidate => ({
+          id: candidate.id,
+          name: (candidate.id_tema ? temaNameMap.get(candidate.id_tema) : null) || candidate.descripcion || `Instrumento ${candidate.id}`,
+          subjectId: candidate.id_tema,
+          completed: completedResponses.some(response => response.id_paciente_instrumento === record.id && response.id_instrumento === candidate.id),
+        })),
       };
     });
   }

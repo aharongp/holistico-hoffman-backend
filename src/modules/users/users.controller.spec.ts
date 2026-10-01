@@ -1,3 +1,4 @@
+import { PatientService } from 'src/modules/patients/patient/patient.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -10,6 +11,7 @@ describe('UsersController', () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [UsersController],
       providers: [
+        { provide: PatientService, useValue: {} },
         UsersService,
         {
           provide: PrismaService,

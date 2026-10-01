@@ -4,10 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
-import { createReadStream, existsSync } from 'node:fs';
-import { mkdir, writeFile } from 'node:fs/promises';
-import type { ReadStream } from 'node:fs';
-import { basename, dirname, extname, join, relative, resolve } from 'node:path';
+import { basename, extname, join } from 'node:path';
+import { FileStorageService } from '../../storage/file-storage.service';
 import {
   Prisma,
   paciente,
@@ -103,7 +101,8 @@ const normalizeLabelKey = (value: string | null | undefined): string => {
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .replace(/[^a-zA-Z0-9]/g, '')
-    .toLowerCase();
+    .toLowerCase()
+    .replace(/^otravenera$/, 'otravenerea');
 };
 
 const DISEASE_KEY_TO_LABEL: Record<string, string> = {
@@ -144,6 +143,7 @@ const DISEASE_KEY_TO_LABEL: Record<string, string> = {
   sifilis: 'Sifilis',
   blenorragia: 'Blenorragia',
   otravenera: 'Otra Venerea',
+  otravenerea: 'Otra Venerea',
   fiebrereumatica: 'Fiebre Reumatica',
   artritis: 'Artritis',
   enfermedadmuscular: 'Enfermedad Muscular',
@@ -153,55 +153,9 @@ const DISEASE_KEY_TO_LABEL: Record<string, string> = {
 
 @Injectable()
 export class HistoryService {
-  private readonly historyAssetsDir = (() => {
-    const candidates = [
-      join(process.cwd(), 'src', 'assets', 'historia'),
-      join(process.cwd(), 'dist', 'assets', 'historia'),
-      join(__dirname, '..', '..', '..', 'assets', 'historia'),
-    ];
+  private readonly ocularImageTargetPixels = 1600;
 
-    for (const candidate of candidates) {
-      if (existsSync(candidate)) {
-        return candidate;
-      }
-    }
-
-    return candidates[0];
-  })();
-
-  private readonly ocularImagesDir = (() => {
-    const candidates = [
-      join(process.cwd(), 'assets', 'images', 'foto_ocular'),
-      join(process.cwd(), 'src', 'assets', 'images', 'foto_ocular'),
-      join(process.cwd(), 'dist', 'assets', 'images', 'foto_ocular'),
-      join(__dirname, '..', '..', '..', 'assets', 'images', 'foto_ocular'),
-    ];
-
-    for (const candidate of candidates) {
-      if (existsSync(candidate)) {
-        return candidate;
-      }
-    }
-
-    return candidates[0];
-  })();
-
-  private readonly ocularImageTargetPixels = Math.max(
-    1,
-    Math.round((4 / 2.54) * 96),
-  );
-
-  constructor(private readonly prisma: PrismaService) {}
-
-  private resolveAttachmentPath(relativePath: string): string {
-    const sanitized = relativePath.replace(/^[\\/]+/, '');
-    const absolutePath = resolve(this.historyAssetsDir, sanitized);
-    const diff = relative(this.historyAssetsDir, absolutePath);
-    if (diff.startsWith('..') || diff.includes('..')) {
-      throw new NotFoundException('Attachment path is invalid');
-    }
-    return absolutePath;
-  }
+  constructor(private readonly prisma: PrismaService, private readonly storage: FileStorageService) {}
 
   private guessMimeType(filename: string): string {
     const extension = extname(filename).toLowerCase();
@@ -539,12 +493,13 @@ export class HistoryService {
       extension = '.jpg';
     }
 
+    extension = extension === '.png' ? '.png' : '.jpg';
     const targetFormat = extension === '.png' ? 'png' : 'jpeg';
     const processedBuffer = await sharp(file.buffer)
       .rotate()
       .resize(this.ocularImageTargetPixels, this.ocularImageTargetPixels, {
-        fit: sharp.fit.cover,
-        position: 'center',
+        fit: sharp.fit.inside,
+        withoutEnlargement: true,
       })
       .toFormat(
         targetFormat,
@@ -559,11 +514,7 @@ export class HistoryService {
       'utf8',
     ).toString('base64url');
     const filename = `${uniqueToken}${extension}`;
-    const destinationDir = join(this.ocularImagesDir, String(patientId));
-
-    await mkdir(destinationDir, { recursive: true });
-    const absolutePath = join(destinationDir, filename);
-    await writeFile(absolutePath, processedBuffer);
+    await this.storage.put(`images/foto_ocular/${patientId}/${filename}`, processedBuffer);
 
     return join('images', 'foto_ocular', String(patientId), filename).replace(
       /\\/g,
@@ -1820,13 +1771,16 @@ export class HistoryService {
       extension = this.guessExtension(file.mimetype);
     }
 
-    const randomName = randomBytes(6).toString('hex');
-    const filename = `${randomName}${extension || ''}`;
+    if (!['.pdf', '.jpg', '.jpeg', '.png', '.doc', '.docx', '.xls', '.xlsx', '.txt'].includes(extension)) {
+      throw new BadRequestException('Formato no permitido. Usa PDF, imágenes JPG/PNG, documentos de Office o TXT.');
+    }
+    if (file.buffer.length > 10 * 1024 * 1024) throw new BadRequestException('El estudio supera 10 MB.');
+    const randomName = randomBytes(12).toString('hex');
+    const originalStem = basename(file.originalname ?? 'estudio', extname(file.originalname ?? ''))
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9_-]/g, '-').slice(0, 100) || 'estudio';
+    const filename = `${randomName}-${originalStem}${extension}`;
     const relativePath = `${patientId}/${filename}`;
-    const absolutePath = this.resolveAttachmentPath(relativePath);
-
-    await mkdir(dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, file.buffer);
+    await this.storage.put(`historia/${relativePath}`, file.buffer);
 
     const timestamp = new Date();
     const created = await this.prisma.paciente_historia.create({
@@ -1907,7 +1861,7 @@ export class HistoryService {
   }
 
   async getAttachmentFile(attachmentId: number): Promise<{
-    stream: ReadStream;
+    stream: Buffer;
     filename: string;
     mimeType: string;
     patientId: number | null;
@@ -1927,14 +1881,9 @@ export class HistoryService {
       throw new NotFoundException('Attachment file not available');
     }
 
-    const absolutePath = this.resolveAttachmentPath(relativePath);
-    if (!existsSync(absolutePath)) {
-      throw new NotFoundException('Attachment file not found on disk');
-    }
-
-    const filename = basename(absolutePath);
+    const filename = basename(relativePath);
     const mimeType = this.guessMimeType(filename);
-    const stream = createReadStream(absolutePath);
+    const stream = await this.storage.get(`historia/${relativePath}`);
 
     let userId: number | null = null;
     const patientId = record.id_paciente ?? null;
@@ -2073,6 +2022,19 @@ export class HistoryService {
       }
 
       await this.syncDiseaseHistory(tx, patientId, payload.diseases);
+      if (payload.alterations) {
+        const existing = await tx.paciente_alteracion.findMany({ where: { id_paciente: patientId } });
+        for (const [key, value] of Object.entries(payload.alterations)) {
+          if (value === undefined || value === null) continue;
+          const matches = existing.filter(row => normalizeLabelKey(row.alteracion) === normalizeLabelKey(key));
+          const data = { estatus: value === true ? 1 : 0, updated_at: new Date() };
+          if (matches.length) {
+            await tx.paciente_alteracion.updateMany({ where: { id: { in: matches.map(row => row.id) } }, data });
+          } else {
+            await tx.paciente_alteracion.create({ data: { ...data, id_paciente: patientId, alteracion: key, created_at: new Date() } });
+          }
+        }
+      }
     });
 
     return this.getFullMedicalHistory(patientId);
@@ -2100,6 +2062,7 @@ export class HistoryService {
       consultations,
       coachConsultations,
       diseases,
+      alterations,
     ] = await Promise.all([
       this.loadPatient(patientId),
       this.loadAntecedent(patientId),
@@ -2107,6 +2070,7 @@ export class HistoryService {
       this.getMedicalConsultations(patientId),
       this.getCoachConsultations(patientId),
       this.getDiseaseHistory(patientId),
+      this.prisma.paciente_alteracion.findMany({ where: { id_paciente: patientId } }),
     ]);
 
     return {
@@ -2122,6 +2086,7 @@ export class HistoryService {
       consultations,
       coachConsultations,
       diseases,
+      alterations: Object.fromEntries(alterations.map(row => [row.alteracion ?? '', toBoolean(row.estatus)])),
     };
   }
 
@@ -2140,12 +2105,14 @@ export class HistoryService {
       consultations,
       coachConsultations,
       diseases,
+      alterations,
     ] = await Promise.all([
       this.loadAntecedent(patientId),
       this.getMedicalAttachments(patientId),
       this.getMedicalConsultations(patientId),
       this.getCoachConsultations(patientId),
       this.getDiseaseHistory(patientId),
+      this.prisma.paciente_alteracion.findMany({ where: { id_paciente: patientId } }),
     ]);
 
     return {
@@ -2161,6 +2128,7 @@ export class HistoryService {
       consultations,
       coachConsultations,
       diseases,
+      alterations: Object.fromEntries(alterations.map(row => [row.alteracion ?? '', toBoolean(row.estatus)])),
     };
   }
 }

@@ -1,3 +1,5 @@
+import { MailService } from 'src/modules/mail/mail.service';
+import { PatientService } from 'src/modules/patients/patient/patient.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
@@ -17,6 +19,8 @@ describe('AuthService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
+        { provide: MailService, useValue: {} },
+        { provide: PatientService, useValue: {} },
         AuthService,
         {
           provide: PrismaService,

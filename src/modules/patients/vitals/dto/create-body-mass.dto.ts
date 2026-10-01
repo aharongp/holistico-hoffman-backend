@@ -1,6 +1,6 @@
 export class CreateBodyMassDto {
   /** Peso en kg. */
-  peso: string | number;
+  peso?: string | number;
 
   /** Fecha opcional en formato ISO. */
   fecha?: string;
