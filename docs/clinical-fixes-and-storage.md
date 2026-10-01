@@ -2,6 +2,10 @@
 
 El 30 de septiembre de 2026 se realizó una inspección SSH de solo lectura, autorizada por el propietario, para localizar el proyecto. El 1 de octubre, con autorización explícita para la instalación, se creó la cuenta SFTP aislada, se configuraron sus permisos y se guardaron las siete variables de almacenamiento en Production del backend de Vercel. La prueba real de subida, lectura y eliminación pasó con archivos ficticios. No se modificaron registros clínicos de la base de datos. El propietario requiere autorización antes de cada nuevo conjunto de acciones en el servidor fuera del alcance aprobado.
 
+El backend con las correcciones se publicó desde `f74b3fc` y alcanzó estado Ready en producción: [despliegue verificado](https://vercel.com/aharongps-projects/holistico-hoffman-backend/7Xtp74mXHjDCkb27B4gd3bAmLMuZ). La prueba HTTPS contra `holistico-hoffman-backend.vercel.app` devolvió `200`, `Content-Type: image/png` y exactamente los bytes subidos al SFTP. Se eliminaron la imagen y su directorio de prueba.
+
+El frontend `923b273` también alcanzó estado Ready en Production: [despliegue del frontend](https://vercel.com/aharongps-projects/demo-holistico-hoffman/3RQreHvejHWb8SV79z7AZ6CyB5pJ). Aplicación: [demo-holistico-hoffman.vercel.app](https://demo-holistico-hoffman.vercel.app). Los siguientes commits de documentación conservan este mismo código verificado.
+
 ## Rutas verificadas en el servidor
 
 - Servidor: `68.183.142.98`.
@@ -63,4 +67,4 @@ Resultado local: 92 pruebas del backend y 9 del frontend aprobadas; compilación
 
 Para prueba de interfaz con datos ficticios: ejecutar Vite con `VITE_API_BASE=http://127.0.0.1:3999 npm run dev -- --host 127.0.0.1 --port 5178`, después `node scripts/clinical-smoke.mjs`. Requiere Chromium de Playwright. Todas las llamadas a la API se interceptan; no usa el servidor real.
 
-Antes de activar en producción, y con autorización, comprobar con un paciente de prueba: subida/descarga de foto y PDF, reapertura de historia, peso solo con fecha anterior, frecuencia cardíaca, dos tests diferentes, gráficos, asignación y reapertura de programa. Confirmar permisos de escritura de la cuenta SFTP y lectura de archivos antiguos.
+La verificación de infraestructura y la publicación en producción están completadas. La validación clínica con un paciente de prueba debe comprobar: subida/descarga de foto y PDF desde la interfaz, reapertura de historia, peso solo con fecha anterior, frecuencia cardíaca, dos tests diferentes, gráficos y asignación/reapertura de programa. Estos flujos se probaron localmente con datos ficticios; no se modificaron pacientes reales para validar el despliegue.

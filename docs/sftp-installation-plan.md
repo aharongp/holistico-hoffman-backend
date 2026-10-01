@@ -1,6 +1,6 @@
 # Instalación SFTP
 
-Estado al 1 de octubre de 2026: **instalación autorizada y completada**, cuenta `hoffman_files` activa y siete variables SFTP guardadas en Production del backend en Vercel. Verificación SFTP real aprobada. El despliegue de las correcciones se realiza después de esta configuración.
+Estado al 1 de octubre de 2026: **instalación autorizada y completada**, cuenta `hoffman_files` activa y siete variables SFTP guardadas en Production del backend en Vercel. Verificación SFTP real aprobada. Backend desplegado y lectura HTTPS desde Vercel comprobada con una imagen ficticia.
 
 Copia de reversión de esta instalación: `/var/lib/hoffman-sftp/install.wurbBkPP`. Incluye `sshd_config.before`, `fstab.before` y `storage.acl.before`.
 
@@ -37,7 +37,7 @@ FILE_STORAGE_HOST_SHA256=931719aabf721961c5f201ab58762d624e37607a434ed9bb611d768
 
 La ruta `/assets` corresponde a la cuenta aislada instalada. Con una cuenta sin aislamiento, la ruta física sería `/var/www/html/sshh/public/assets`.
 
-Los cambios de código siguen locales. Backend: rama de producción `profecto-fastweb`, base `8b44143`. Frontend: repositorio `demo-holistico-hoffman`, base local `5317126` en `main`. Guardar variables o redesplegar la versión antigua no incorpora las correcciones: hay que publicar el código preparado.
+Backend publicado: commit `f74b3fc`, rama `profecto-fastweb`, [despliegue Ready en Production](https://vercel.com/aharongps-projects/holistico-hoffman-backend/7Xtp74mXHjDCkb27B4gd3bAmLMuZ). Frontend publicado: commit `923b273` en `main`, repositorio `demo-holistico-hoffman`, [despliegue Ready en Production](https://vercel.com/aharongps-projects/demo-holistico-hoffman/3RQreHvejHWb8SV79z7AZ6CyB5pJ). Las correcciones requieren el despliegue de esos commits o sus descendientes; redesplegar una versión anterior no las incorpora.
 
 Se verificó en Chrome que el frontend usa `VITE_API_BASE=https://holistico-hoffman-backend.vercel.app` y despliega desde `main`. No fue necesario cambiar esa URL. No se revelaron las credenciales de base de datos ni de administración existentes.
 
@@ -45,7 +45,7 @@ Se verificó en Chrome que el frontend usa `VITE_API_BASE=https://holistico-hoff
 
 El verificador usó el servicio real de almacenamiento y creó un TXT y un PNG mínimos, con nombres aleatorios, en carpetas `.deployment-check-*`. Pasaron autenticación, huella, aislamiento, subida, lectura y eliminación. Limpió sus propios archivos y directorios. No consultó la base de datos ni abrió archivos de pacientes.
 
-Después de guardar variables y desplegar, comprobar el acceso HTTPS del backend con archivos de prueba. La reparación de metadatos clínicos históricos sigue fuera de este procedimiento.
+Tras desplegar el backend se subió otra imagen ficticia por SFTP y se recuperó desde `https://holistico-hoffman-backend.vercel.app/assets/images/foto_extra/.../probe.png`. Se verificaron respuesta `200`, tipo `image/png` y coincidencia exacta de bytes. La imagen y su directorio aleatorio se eliminaron al terminar. La reparación de metadatos clínicos históricos sigue fuera de este procedimiento.
 
 ## Reversión
 
