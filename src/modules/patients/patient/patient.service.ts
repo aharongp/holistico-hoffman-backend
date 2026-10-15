@@ -491,6 +491,18 @@ export class PatientService {
     const normalizedEmail = contactEmail
       ? contactEmail.toLowerCase()
       : contactEmail;
+    const emailProvided = [
+      'contacto_correo',
+      'contactoCorreo',
+      'email',
+      'correo',
+    ].some((key) => Object.prototype.hasOwnProperty.call(updatePatientDto, key));
+    const firstNameProvided = ['nombres', 'firstName'].some((key) =>
+      Object.prototype.hasOwnProperty.call(updatePatientDto, key),
+    );
+    const lastNameProvided = ['apellidos', 'lastName'].some((key) =>
+      Object.prototype.hasOwnProperty.call(updatePatientDto, key),
+    );
     const ribbonIdProvided = this.hasRibbonIdKey(updatePatientDto);
 
     const hasExplicitUserId =
@@ -500,9 +512,40 @@ export class PatientService {
       ) ||
       Object.prototype.hasOwnProperty.call(updatePatientDto as any, 'userId');
 
-    const updated = await this.prisma.paciente.update({
+    const existingPatient = await this.prisma.paciente.findUnique({
       where: { id },
-      data: {
+      select: {
+        id: true,
+        id_usuario: true,
+        nombres: true,
+        apellidos: true,
+      },
+    });
+    if (!existingPatient) {
+      throw new NotFoundException('Paciente no encontrado');
+    }
+
+    if (emailProvided && !normalizedEmail) {
+      throw new BadRequestException('El correo electrónico es obligatorio');
+    }
+
+    if (emailProvided && normalizedEmail && existingPatient.id_usuario) {
+      const duplicate = await this.prisma.usuario.findFirst({
+        where: {
+          email: normalizedEmail,
+          NOT: { id: existingPatient.id_usuario },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        throw new BadRequestException('El correo ya está en uso por otro usuario');
+      }
+    }
+
+    const updated = await this.prisma.$transaction(async (prisma) => {
+      const savedPatient = await prisma.paciente.update({
+        where: { id },
+        data: {
         cedula: cedula ?? undefined,
         nombres: firstName ?? undefined,
         apellidos: lastName ?? undefined,
@@ -513,7 +556,7 @@ export class PatientService {
         activo: typeof activeFlag === 'number' ? activeFlag : undefined,
         id_programa: this.hasAnyProgramKey(updatePatientDto) ? programId : undefined,
         contacto: contactName ?? undefined,
-        contacto_correo: normalizedEmail ?? undefined,
+        contacto_correo: emailProvided ? normalizedEmail : undefined,
         contacto_telefono: contactPhone ?? telefono ?? undefined,
         id_usuario: hasExplicitUserId
           ? typeof explicitUserId === 'number'
@@ -525,8 +568,32 @@ export class PatientService {
             ? ribbonId
             : null
           : undefined,
-      },
-      select: this.patientSelect,
+        },
+        select: this.patientSelect,
+      });
+
+      if (existingPatient.id_usuario) {
+        const resolvedFirstName = firstNameProvided
+          ? firstName
+          : existingPatient.nombres;
+        const resolvedLastName = lastNameProvided
+          ? lastName
+          : existingPatient.apellidos;
+        const namesProvided = firstNameProvided || lastNameProvided;
+
+        await prisma.usuario.update({
+          where: { id: existingPatient.id_usuario },
+          data: {
+            email: emailProvided ? normalizedEmail : undefined,
+            username: namesProvided
+              ? this.joinNames(resolvedFirstName, resolvedLastName)
+              : undefined,
+            updated_at: new Date(),
+          },
+        });
+      }
+
+      return savedPatient;
     });
     if (!updated) return null;
     return this.mapPatient(updated);

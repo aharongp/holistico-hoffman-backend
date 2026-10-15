@@ -11,8 +11,10 @@ describe('Patient program persistence', () => {
         Object.entries(data).forEach(([key, value]) => { if (value !== undefined) (patient as any)[key] = value; });
         return { ...patient };
       }) },
+      usuario: { findFirst: jest.fn(), update: jest.fn() },
       programa: { findUnique: jest.fn().mockResolvedValue({ id: 4 }) },
     };
+    prisma.$transaction = jest.fn(async (callback) => callback(prisma));
     service = new PatientService(prisma, {} as any);
   });
   it('retains the assigned program on a fresh GET and unrelated edits', async () => {

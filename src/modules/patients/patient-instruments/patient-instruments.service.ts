@@ -452,7 +452,7 @@ export class PatientInstrumentsService {
           (createBulkPatientInstrumentDto as any).disponible ??
           (createBulkPatientInstrumentDto as any).available;
 
-        if (itemAvailability !== undefined || globalAvailability !== undefined) {
+        if (itemAvailability != null || globalAvailability != null) {
           payload.disponible = itemAvailability ?? globalAvailability;
         }
 

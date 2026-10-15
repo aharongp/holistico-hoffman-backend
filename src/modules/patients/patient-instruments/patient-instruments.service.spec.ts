@@ -99,4 +99,20 @@ describe('PatientInstrumentsService', () => {
       false,
     );
   });
+
+  it('does not turn omitted item availability into an invalid explicit value', async () => {
+    const createSpy = jest
+      .spyOn(service as any, 'create')
+      .mockImplementation(async (payload: any) => ({ id: 999, payload }));
+
+    await service.createBulk({
+      patientIds: [1],
+      items: [{ instrumentTypeId: 10, topics: ['Salud'] }],
+    });
+
+    const firstPayload = createSpy.mock.calls[0][0] as Record<string, unknown>;
+    expect(Object.prototype.hasOwnProperty.call(firstPayload, 'disponible')).toBe(
+      false,
+    );
+  });
 });

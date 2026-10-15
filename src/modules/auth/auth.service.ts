@@ -4,6 +4,7 @@ import {
   Logger,
   BadRequestException,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -488,12 +489,21 @@ export class AuthService {
       '<p>Equipo Holístico Hoffmann</p>',
     ].join('');
 
-    await this.mailService.sendMail({
+    const sent = await this.mailService.sendMail({
       to: user.email ?? email,
       subject: 'Código de verificación para restablecer tu contraseña',
       text: textLines.join('\n'),
       html: htmlMessage,
     });
+
+    if (!sent) {
+      this.logger.error(
+        `No se pudo entregar el código de restablecimiento para el usuario ${user.id}`,
+      );
+      throw new ServiceUnavailableException(
+        'No se pudo enviar el código de verificación. Intenta nuevamente más tarde.',
+      );
+    }
 
     return { success: true, token: verificationToken };
   }

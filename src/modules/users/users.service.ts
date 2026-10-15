@@ -195,31 +195,87 @@ export class UsersService {
   }
 
   async update(id: number, data: any): Promise<PublicUser | null> {
-    const updated = await this.prisma.usuario.update({
+    const existing = await this.prisma.usuario.findUnique({
       where: { id },
-      data: {
-        email: data.email,
-        username: data.username,
-        rol: data.role ?? data.rol,
-        active: data.isActive ?? data.active,
-      },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        rol: true,
-        created_at: true,
-        updated_at: true,
-        active: true,
-      },
+      select: { id: true, email: true, username: true },
+    });
+    if (!existing) {
+      throw new NotFoundException('Usuario no encontrado');
+    }
+
+    const emailProvided = Object.prototype.hasOwnProperty.call(data, 'email');
+    const email = emailProvided
+      ? (data.email ?? '').toString().trim().toLowerCase()
+      : existing.email;
+    if (emailProvided && !email) {
+      throw new BadRequestException('El correo electrónico es obligatorio');
+    }
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new BadRequestException('El correo electrónico no es válido');
+    }
+
+    if (emailProvided && email) {
+      const duplicate = await this.prisma.usuario.findFirst({
+        where: { email, NOT: { id } },
+        select: { id: true },
+      });
+      if (duplicate) {
+        throw new BadRequestException('El correo ya está en uso por otro usuario');
+      }
+    }
+
+    const firstName = (data.firstName ?? data.first_name ?? '').toString().trim();
+    const lastName = (data.lastName ?? data.last_name ?? '').toString().trim();
+    const namesProvided = Boolean(firstName || lastName);
+    const username = namesProvided
+      ? this.joinNames(firstName, lastName)
+      : (data.username ?? existing.username);
+
+    const updated = await this.prisma.$transaction(async (prisma) => {
+      const saved = await prisma.usuario.update({
+        where: { id },
+        data: {
+          email: emailProvided ? email : undefined,
+          username: namesProvided || data.username ? username : undefined,
+          rol: data.role ?? data.rol,
+          active: data.isActive ?? data.active,
+          updated_at: new Date(),
+        },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          rol: true,
+          created_at: true,
+          updated_at: true,
+          active: true,
+        },
+      });
+
+      const patient = await prisma.paciente.findFirst({
+        where: { id_usuario: id },
+        select: { id: true },
+      });
+      if (patient) {
+        await prisma.paciente.update({
+          where: { id: patient.id },
+          data: {
+            nombres: namesProvided ? firstName || undefined : undefined,
+            apellidos: namesProvided ? lastName || undefined : undefined,
+            contacto: namesProvided ? username : undefined,
+            contacto_correo: emailProvided ? email : undefined,
+          },
+        });
+      }
+
+      return saved;
     });
     if (!updated) return null;
     return {
       id: updated.id,
       email: updated.email,
       username: updated.username,
-      firstName: (updated as any).nombres ?? null,
-      lastName: (updated as any).apellidos ?? null,
+      ...this.extractNames(updated.username, { firstName, lastName }),
       rol: updated.rol ?? null,
       created_at: updated.created_at ?? null,
       last_login: updated.updated_at ?? null,
