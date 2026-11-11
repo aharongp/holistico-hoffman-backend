@@ -43,12 +43,16 @@ export class ConsultationController {
   }
 
   @Patch(':id')
-  @Put(':id')
   update(
     @Param('id') id: string,
     @Body() updateConsultationDto: UpdateConsultationDto,
   ) {
     return this.consultationService.update(+id, updateConsultationDto);
+  }
+
+  @Put(':id')
+  replace(@Param('id') id: string, @Body() dto: UpdateConsultationDto) {
+    return this.consultationService.update(+id, dto);
   }
 
   @Delete(':id')

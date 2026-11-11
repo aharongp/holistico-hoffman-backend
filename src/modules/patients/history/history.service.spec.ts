@@ -26,6 +26,21 @@ describe('HistoryService persistence', () => {
     expect((await service.getFullMedicalHistory(17)).alterations).toEqual({ perdidaDePeso: false, tos: true });
   });
 
+  it('persists and reloads multiline coach observations with the selected date and author', async () => {
+    const saved = await service.saveCoachConsultation(17, { observation: ' Primera línea\nSegunda línea ', coach: 'Coach Prueba', reason: 'Seguimiento', date: '2026-11-10' });
+    expect(await service.getCoachConsultations(17)).toEqual([expect.objectContaining({
+      id: saved.id, observation: 'Primera línea\nSegunda línea', coach: 'Coach Prueba', reason: 'Seguimiento', date: '2026-11-10T00:00:00.000Z',
+    })]);
+    await service.saveCoachConsultation(17, { observation: 'Observación corregida', date: '2026-11-10', coach: 'Coach Prueba' }, saved.id);
+    expect((await service.getCoachConsultations(17))[0].observation).toBe('Observación corregida');
+    expect(prisma.paciente_consulta_coach.create).toHaveBeenCalledTimes(1);
+  });
+
+  it('rejects empty observations before creating a record', async () => {
+    await expect(service.saveCoachConsultation(17, { observation: '  ' })).rejects.toThrow('Escribe la observación');
+    expect(prisma.paciente_consulta_coach.create).not.toHaveBeenCalled();
+  });
+
   it('saves other venereal disease and clinical text without erasing unrelated fields', async () => {
     await service.updateFullMedicalHistory(17, { diseases: { otraVenerea: 'Detalle de prueba' }, clinicalBackground: { currentIllness: 'Enfermedad actual', otherAlteration: 'Observación' } });
     const result = await service.getFullMedicalHistory(17);

@@ -3,7 +3,9 @@ import {
   Injectable,
   NotFoundException,
   Logger,
+  ForbiddenException,
 } from '@nestjs/common';
+import { normalizeRole } from '../../permissions/permissions.constants';
 import { CreateBulkPatientInstrumentDto } from './dto/create-bulk-patient-instrument.dto';
 import { CreatePatientInstrumentDto } from './dto/create-patient-instrument.dto';
 import { UpdatePatientInstrumentDto } from './dto/update-patient-instrument.dto';
@@ -43,6 +45,7 @@ import {
   revistaDiaria,
 } from './utils/formulas.util';
 import { MailService } from 'src/modules/mail/mail.service';
+import { buildInstrumentCharts, AssignedInstrumentChartResult } from './utils/instrument-charts.util';
 
 const WHEEL_OF_LIFE_TOPIC_GROUPS = [
   { label: 'FAMILIA', topicIds: [122, 163, 58, 225] },
@@ -860,7 +863,25 @@ export class PatientInstrumentsService {
       orderBy: [{ fecha: 'desc' }, { created_at: 'desc' }, { id: 'desc' }],
     });
 
-    return this.mapInstrumentResponses(records);
+    const mapped = this.mapInstrumentResponses(records);
+    const missing = mapped.filter(row => !row.instrumentId);
+    if (!missing.length) return mapped;
+    const [questions, catalog] = await Promise.all([
+      this.prisma.pregunta.findMany({
+        where: { id: { in: missing.flatMap(row => row.questionId ? [row.questionId] : []) } },
+        select: { id: true, id_instrumento: true },
+      }),
+      this.prisma.instrumento.findMany({ select: { id: true, id_tema: true } }),
+    ]);
+    return mapped.map(row => {
+      if (row.instrumentId) return row;
+      const question = questions.find(item => item.id === row.questionId);
+      const parent = catalog.find(item => item.id === question?.id_instrumento);
+      const bySubject = catalog.filter(item => item.id_tema === row.topicId && row.topicId !== null);
+      const instrumentId = parent && (row.topicId === null || parent.id_tema === row.topicId)
+        ? parent.id : bySubject.length === 1 ? bySubject[0].id : null;
+      return { ...row, instrumentId };
+    });
   }
 
   async findResponsesByUser(
@@ -868,6 +889,92 @@ export class PatientInstrumentsService {
   ): Promise<PatientInstrumentResponse[]> {
     const patientId = await this.resolvePatientIdByUser(userId);
     return this.findResponsesByPatient(patientId);
+  }
+
+  async findChartsByPatient(patientId: number, actor?: { id: number; rol?: string }) {
+    if (actor && !['administrator', 'trainer', 'therapist', 'doctor', 'coach'].includes(normalizeRole(actor.rol))) {
+      const patient = await this.prisma.paciente.findUnique({ where: { id: patientId }, select: { id_usuario: true } });
+      if (!patient || patient.id_usuario !== actor.id) throw new ForbiddenException('No tienes acceso a los resultados de este paciente.');
+    }
+    const [assignments, responses] = await Promise.all([
+      this.findByPatient(patientId), this.findResponsesByPatient(patientId),
+    ]);
+    const catalog = await this.prisma.instrumento.findMany({
+      select: { id: true, id_tema: true },
+    });
+    const subjects = await this.prisma.tema.findMany({
+      select: { id: true, nombre: true, tipo_instrumento: true },
+    });
+    const questions = await this.prisma.pregunta.findMany({
+      where: { id_instrumento: { in: [...new Set(responses.flatMap(row => row.instrumentId ? [row.instrumentId] : []))] } },
+      select: { id: true, id_topico: true },
+    });
+    const topics = await this.prisma.topico.findMany({
+      where: { id: { in: [...new Set(questions.flatMap(row => row.id_topico ? [row.id_topico] : []))] } },
+      select: { id: true, nombre: true },
+    });
+    const subjectById = new Map(subjects.map(item => [item.id, item]));
+    const catalogById = new Map(catalog.map(item => [item.id, item]));
+    const questionById = new Map(questions.map(item => [item.id, item]));
+    const topicById = new Map(topics.map(item => [item.id, item.nombre]));
+    const responseGroups = new Map<number, PatientInstrumentResponse[]>();
+    for (const row of responses) {
+      if (row.patientInstrumentId === null) continue;
+      const group = responseGroups.get(row.patientInstrumentId) ?? [];
+      group.push(row);
+      responseGroups.set(row.patientInstrumentId, group);
+    }
+    const responseKey = (row: PatientInstrumentResponse) => row.instrumentId !== null
+      ? `instrument-${row.instrumentId}` : `subject-${row.topicId ?? row.theme ?? 'unknown'}`;
+
+    return assignments.flatMap<AssignedInstrumentChartResult>(assignment => {
+      const assignmentResponses = responseGroups.get(assignment.id) ?? [];
+      // Keep answered tests even when their original catalog instrument was deleted.
+      const descriptors = new Map<string, { id: number | null; name: string; subjectId: number | null }>(
+        (assignment.instruments ?? []).map(item => [`instrument-${item.id}`, item]),
+      );
+      for (const row of assignmentResponses) {
+        const key = responseKey(row);
+        if (descriptors.has(key)) continue;
+        const instrument = row.instrumentId ? catalogById.get(row.instrumentId) : null;
+        const subjectId = instrument?.id_tema ?? row.topicId;
+        const subject = subjectId ? subjectById.get(subjectId) : null;
+        descriptors.set(key, {
+          id: row.instrumentId, subjectId,
+          name: subject?.nombre || row.theme || `Instrumento ${row.instrumentId ?? 'histórico'}`,
+        });
+      }
+      if (!descriptors.size) return [{
+        resultKey: `${assignment.id}:unresolved`, assignmentId: assignment.id,
+        instrumentId: null, name: assignment.instrumentTypeName || 'Instrumento asignado',
+        assignedAt: assignment.assignedAt, status: 'pending', charts: [],
+      }];
+      return [...descriptors.entries()].map(([descriptorKey, instrument]) => {
+        const subject = instrument.subjectId ? subjectById.get(instrument.subjectId) : null;
+        const seen = new Set<number | string>();
+        const selected = assignmentResponses.filter(row => {
+          if (responseKey(row) !== descriptorKey || row.saved) return false;
+          const key = row.questionId ?? row.order ?? row.question ?? row.id;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        }).map(row => {
+          const question = row.questionId ? questionById.get(row.questionId) : null;
+          const topic = question?.id_topico ? topicById.get(question.id_topico) : null;
+          return { ...row, topic: row.topic || topic || null, topicId: row.topicId ?? instrument.subjectId };
+        }).sort((a, b) => (a.order ?? a.id) - (b.order ?? b.id));
+        return {
+          resultKey: `${assignment.id}:${instrument.id ?? descriptorKey}`,
+          assignmentId: assignment.id, instrumentId: instrument.id, name: instrument.name,
+          assignedAt: assignment.assignedAt, status: selected.length ? 'completed' : 'pending',
+          charts: buildInstrumentCharts(selected, subject?.tipo_instrumento ?? selected[0]?.type ?? null),
+        };
+      });
+    });
+  }
+
+  async findChartsByUser(userId: number, actor?: { id: number; rol?: string }) {
+    return this.findChartsByPatient(await this.resolvePatientIdByUser(userId), actor);
   }
 
   async findAggregatedResultsByPatient(

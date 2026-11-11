@@ -38,4 +38,16 @@ describe('Questionnaire identity and result metadata', () => {
     await expect(service.submitResponses(7, { instrumentId: 11, answers: [{ questionId: 999, value: '4' }] })).rejects.toThrow('no pertenecen');
     expect(prisma.paciente_instrumento_respuesta.deleteMany).not.toHaveBeenCalled();
   });
+
+  it('resolves historical responses without changing the stored instrument identifiers', async () => {
+    prisma.paciente_instrumento_respuesta.findMany.mockResolvedValue([
+      { id: 1, id_paciente: 17, id_paciente_instrumento: 7, id_instrumento: null, id_tema: 55, id_pregunta: 101, respuesta: '4', guardado: 0 },
+      { id: 2, id_paciente: 17, id_paciente_instrumento: 7, id_instrumento: null, id_tema: 139, id_pregunta: null, respuesta: '3', guardado: 0 },
+    ]);
+    prisma.pregunta.findMany.mockResolvedValue([{ id: 101, id_instrumento: 11 }]);
+    const restored = await service.findResponsesByPatient(17);
+    expect(restored.map(row => row.instrumentId)).toEqual([11, 12]);
+    expect(prisma.paciente_instrumento_respuesta.createMany).not.toHaveBeenCalled();
+    expect(prisma.paciente_instrumento_respuesta.deleteMany).not.toHaveBeenCalled();
+  });
 });

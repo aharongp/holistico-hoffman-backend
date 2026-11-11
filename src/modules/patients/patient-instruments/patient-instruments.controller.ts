@@ -8,7 +8,10 @@ import {
   Delete,
   ParseIntPipe,
   Query,
+  Req,
+  UseGuards,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
 import {
   AggregatedResultsDateOptions,
   PatientInstrumentsService,
@@ -80,6 +83,18 @@ export class PatientInstrumentsController {
       patientId,
       options,
     );
+  }
+
+  @Get('charts/patient/:patientId')
+  @UseGuards(JwtAuthGuard)
+  findChartsByPatient(@Param('patientId', ParseIntPipe) patientId: number, @Req() request: { user: { id: number; rol?: string } }) {
+    return this.patientInstrumentsService.findChartsByPatient(patientId, request.user);
+  }
+
+  @Get('charts/user/:userId')
+  @UseGuards(JwtAuthGuard)
+  findChartsByUser(@Param('userId', ParseIntPipe) userId: number, @Req() request: { user: { id: number; rol?: string } }) {
+    return this.patientInstrumentsService.findChartsByUser(userId, request.user);
   }
 
   @Get('results/user/:userId')

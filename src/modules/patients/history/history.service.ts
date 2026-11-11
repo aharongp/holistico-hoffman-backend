@@ -1957,6 +1957,29 @@ export class HistoryService {
     }));
   }
 
+  async saveCoachConsultation(patientId: number, payload: {
+    observation?: string | null; reason?: string | null; date?: string | null; coach?: string | null;
+  }, recordId?: number): Promise<PatientCoachConsultation> {
+    const patient = await this.prisma.paciente.findUnique({ where: { id: patientId }, select: { id: true } });
+    if (!patient) throw new NotFoundException('Paciente no encontrado');
+    const observation = this.sanitizeString(payload.observation);
+    if (!observation) throw new BadRequestException('Escribe la observación antes de guardarla.');
+    const date = payload.date ? this.sanitizeDateValue(payload.date) : new Date();
+    if (!date) throw new BadRequestException('La fecha de la observación no es válida.');
+    if (recordId !== undefined) {
+      const existing = await this.prisma.paciente_consulta_coach.findFirst({ where: { id: recordId, id_paciente: patientId } });
+      if (!existing) throw new NotFoundException('Observación no encontrada para este paciente');
+    }
+    const data = {
+      id_paciente: patientId, observacion: observation, motivo: this.sanitizeString(payload.reason),
+      coach: this.sanitizeString(payload.coach), fecha: date, updated_at: new Date(),
+    };
+    const saved = recordId === undefined
+      ? await this.prisma.paciente_consulta_coach.create({ data: { ...data, created_at: new Date() } })
+      : await this.prisma.paciente_consulta_coach.update({ where: { id: recordId }, data });
+    return { id: saved.id, date: toIsoString(saved.fecha), coach: toStringOrNull(saved.coach), observation: toStringOrNull(saved.observacion), reason: toStringOrNull(saved.motivo) };
+  }
+
   async getDiseaseHistory(
     patientId: number,
   ): Promise<PatientDiseaseHistoryEntry[]> {

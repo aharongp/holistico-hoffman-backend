@@ -9,7 +9,12 @@ import {
   Put,
   UploadedFiles,
   UseInterceptors,
+  UseGuards,
+  Req,
+  ForbiddenException,
 } from '@nestjs/common';
+import { JwtAuthGuard } from '../../auth/guards/jwt-auth.guard';
+import { normalizeRole } from '../../permissions/permissions.constants';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import type { MulterField } from '@nestjs/platform-express/multer/interfaces/multer-options.interface';
 import { HistoryService } from './history.service';
@@ -241,6 +246,35 @@ export class HistoryController {
   @Get(':patientId/coach-consultations')
   getCoachConsultations(@Param('patientId', ParseIntPipe) patientId: number) {
     return this.historyService.getCoachConsultations(patientId);
+  }
+
+  @Post(':patientId/coach-consultations')
+  @UseGuards(JwtAuthGuard)
+  createCoachConsultation(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Body() payload: { observation?: string; reason?: string; date?: string; coach?: string },
+    @Req() request: { user: { rol?: string; username?: string } },
+  ) {
+    this.assertCoachRole(request.user.rol);
+    return this.historyService.saveCoachConsultation(patientId, { ...payload, coach: request.user.username });
+  }
+
+  @Put(':patientId/coach-consultations/:recordId')
+  @UseGuards(JwtAuthGuard)
+  updateCoachConsultation(
+    @Param('patientId', ParseIntPipe) patientId: number,
+    @Param('recordId', ParseIntPipe) recordId: number,
+    @Body() payload: { observation?: string; reason?: string; date?: string; coach?: string },
+    @Req() request: { user: { rol?: string; username?: string } },
+  ) {
+    this.assertCoachRole(request.user.rol);
+    return this.historyService.saveCoachConsultation(patientId, { ...payload, coach: request.user.username }, recordId);
+  }
+
+  private assertCoachRole(role?: string) {
+    if (!['administrator', 'trainer', 'therapist', 'doctor', 'coach'].includes(normalizeRole(role))) {
+      throw new ForbiddenException('No tienes permiso para registrar observaciones de coach.');
+    }
   }
 
   @Get(':patientId/diseases')
