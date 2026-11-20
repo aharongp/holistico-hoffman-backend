@@ -54,12 +54,25 @@ describe('Graphs for all catalog test families', () => {
     ]);
   });
 
-  it('renders both wheels as radar charts when three or more areas exist', () => {
-    for (const type of ['rueda-vida', 'rueda-salud']) {
-      expect(
-        buildInstrumentCharts([answer('5', 'A'), answer('6', 'B'), answer('7', 'C')], type)[0].kind,
-      ).toBe('radar');
-    }
+  it('keeps one sector per current topic and uses the historical chart for each instrument', () => {
+    const rows = [answer('2', 'A'), answer('4', 'A'), answer('5', 'B')];
+    expect(buildInstrumentCharts(rows, 'rueda-vida')[0]).toMatchObject({
+      kind: 'pie', points: [{ label: 'A', value: 3 }, { label: 'B', value: 5 }],
+    });
+    expect(buildInstrumentCharts(rows, 'rueda-salud')[0]).toMatchObject({ kind: 'radar', axisMax: 5 });
+  });
+
+  it('calculates addiction goals per topic and averages percentages for the overall trend', () => {
+    const charts = buildInstrumentCharts([answer('2', 'A'), answer('9', 'B')], null, new Map([['A', 4], ['B', 10]]));
+    expect(charts.slice(0, 3).map(c => [c.kind, ...c.points.map(p => p.value)])).toEqual([
+      ['pie', 50, 50], ['pie', 90, 10], ['pie', 70, 30],
+    ]);
+  });
+
+  it('groups Regiflex by the recorded option even when questions have no topic', () => {
+    expect(buildInstrumentCharts([answer('1'), answer('2'), answer('2')], 'regiflex-flexirigi')[0]).toMatchObject({
+      kind: 'pie', points: [{ label: 'FLEXIRIGI', value: 1 }, { label: 'RIGIFLEX', value: 4 }],
+    });
   });
 
   it('sums the two firmness axes separately using the catalog subject', () => {

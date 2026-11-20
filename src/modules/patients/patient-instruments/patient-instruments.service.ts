@@ -45,7 +45,7 @@ import {
   revistaDiaria,
 } from './utils/formulas.util';
 import { MailService } from 'src/modules/mail/mail.service';
-import { buildInstrumentCharts, AssignedInstrumentChartResult } from './utils/instrument-charts.util';
+import { buildInstrumentCharts, firmnessPercentages, AssignedInstrumentChartResult } from './utils/instrument-charts.util';
 
 const WHEEL_OF_LIFE_TOPIC_GROUPS = [
   { label: 'FAMILIA', topicIds: [122, 163, 58, 225] },
@@ -907,7 +907,7 @@ export class PatientInstrumentsService {
     });
     const questions = await this.prisma.pregunta.findMany({
       where: { id_instrumento: { in: [...new Set(responses.flatMap(row => row.instrumentId ? [row.instrumentId] : []))] } },
-      select: { id: true, id_topico: true },
+      select: { id: true, id_topico: true, id_instrumento: true },
     });
     const topics = await this.prisma.topico.findMany({
       where: { id: { in: [...new Set(questions.flatMap(row => row.id_topico ? [row.id_topico] : []))] } },
@@ -917,6 +917,22 @@ export class PatientInstrumentsService {
     const catalogById = new Map(catalog.map(item => [item.id, item]));
     const questionById = new Map(questions.map(item => [item.id, item]));
     const topicById = new Map(topics.map(item => [item.id, item.nombre]));
+    // The legacy addictions report uses instrument 95 and sums every catalog option per area.
+    const addictionQuestions = questions.filter(question => question.id_instrumento === 95);
+    const addictionTotals = new Map<string, number>();
+    if (addictionQuestions.length) {
+      const options = await this.prisma.respuesta.findMany({
+        where: { id_pregunta: { in: addictionQuestions.map(question => question.id) } },
+        select: { id_pregunta: true, valor: true },
+      });
+      for (const option of options) {
+        const question = questionById.get(option.id_pregunta ?? -1);
+        const area = topicById.get(question?.id_topico ?? -1)?.trim();
+        if (area && option.valor?.trim() && Number.isFinite(Number(option.valor))) {
+          addictionTotals.set(area, (addictionTotals.get(area) ?? 0) + Number(option.valor));
+        }
+      }
+    }
     const responseGroups = new Map<number, PatientInstrumentResponse[]>();
     for (const row of responses) {
       if (row.patientInstrumentId === null) continue;
@@ -967,7 +983,8 @@ export class PatientInstrumentsService {
           resultKey: `${assignment.id}:${instrument.id ?? descriptorKey}`,
           assignmentId: assignment.id, instrumentId: instrument.id, name: instrument.name,
           assignedAt: assignment.assignedAt, status: selected.length ? 'completed' : 'pending',
-          charts: buildInstrumentCharts(selected, subject?.tipo_instrumento ?? selected[0]?.type ?? null),
+          firmnessHistory: firmnessPercentages(selected),
+          charts: buildInstrumentCharts(selected, subject?.tipo_instrumento ?? selected[0]?.type ?? null, instrument.id === 95 ? addictionTotals : undefined),
         };
       });
     });
