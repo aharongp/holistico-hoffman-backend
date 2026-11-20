@@ -138,7 +138,7 @@ export class UsersService {
       throw new BadRequestException('El nombre es obligatorio');
     }
 
-    if (!lastName) {
+    if (!lastName && !['patient', 'paciente'].includes(role.toLowerCase())) {
       throw new BadRequestException('El apellido es obligatorio');
     }
 
@@ -180,6 +180,7 @@ export class UsersService {
           id_usuario: created.id,
           nombres: firstName,
           apellidos: lastName,
+          telefono: createUserDto.phone?.trim() || undefined,
           contacto_correo: email,
           contacto: username,
           activo: 1,
@@ -264,6 +265,18 @@ export class UsersService {
             apellidos: namesProvided ? lastName || undefined : undefined,
             contacto: namesProvided ? username : undefined,
             contacto_correo: emailProvided ? email : undefined,
+          },
+        });
+      } else if (['patient', 'paciente'].includes(saved.rol?.trim().toLowerCase() ?? '')) {
+        await prisma.paciente.create({
+          data: {
+            id_usuario: saved.id,
+            nombres: firstName || saved.username,
+            apellidos: lastName || null,
+            contacto: saved.username,
+            contacto_correo: saved.email,
+            fecha_ingreso: new Date(),
+            activo: saved.active ?? 1,
           },
         });
       }

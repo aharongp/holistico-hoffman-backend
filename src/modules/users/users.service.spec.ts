@@ -6,15 +6,19 @@ import { UsersService } from './users.service';
 describe('UsersService', () => {
   let service: UsersService;
   let prisma: any;
+  let createPatient: jest.Mock;
 
   beforeEach(async () => {
+    createPatient = jest.fn();
     prisma = {
       usuario: {
+        create: jest.fn(),
         findUnique: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
       },
       paciente: {
+        create: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
       },
@@ -23,7 +27,7 @@ describe('UsersService', () => {
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        { provide: PatientService, useValue: {} },
+        { provide: PatientService, useValue: { create: createPatient } },
         UsersService,
         {
           provide: PrismaService,
@@ -80,5 +84,23 @@ describe('UsersService', () => {
         contacto_correo: 'correcto@example.com',
       }),
     });
+  });
+  it('links a patient using only name, email and phone', async () => {
+    prisma.usuario.create.mockResolvedValue({ id: 12, username: 'Ana', rol: 'patient' });
+    await service.create({ firstName: 'Ana', email: 'ana@example.invalid', phone: '5550100', role: 'patient' });
+    expect(createPatient).toHaveBeenCalledWith(expect.objectContaining({
+      id_usuario: 12, nombres: 'Ana', telefono: '5550100', contacto_correo: 'ana@example.invalid',
+    }));
+  });
+
+  it('restores a missing patient record when saving an existing patient user', async () => {
+    const user = { id: 12, username: 'Ana', email: 'ana@example.invalid', rol: 'patient', active: 1 };
+    prisma.usuario.findUnique.mockResolvedValue(user);
+    prisma.usuario.update.mockResolvedValue(user);
+    prisma.paciente.findFirst.mockResolvedValue(null);
+    await service.update(12, { role: 'patient' });
+    expect(prisma.paciente.create).toHaveBeenCalledWith({ data: expect.objectContaining({
+      id_usuario: 12, nombres: 'Ana', contacto_correo: user.email, activo: 1,
+    }) });
   });
 });
